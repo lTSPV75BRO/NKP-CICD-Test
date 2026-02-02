@@ -12,11 +12,22 @@ spec:
       labels:
         app: test-website
     spec:
-      serviceAccountName: flux-status
+      serviceAccountName: default  # ✅ FIXED: Use default SA
       containers:
-      - name: website
+      - name: dashboard
         image: nginx:alpine
         command: ["/bin/sh"]
-        args: ["-c", "apk add curl jq && /usr/local/bin/flux-status.sh & nginx -g 'daemon off;'"]
+        args:
+        - -c
+        - |
+          apk add --no-cache curl jq procps &&
+          while true; do
+            echo "<h1>NKP-CICD Live $(date)</h1>
+            <pre>Flux: $(kubectl get kustomizations -n flux-workloads -o jsonpath='{range .items[*]}{.metadata.name}: {.status.ready}{"\n"}{end}')
+            Git: $(kubectl get gitrepository kafka-infra -n flux-workloads -o jsonpath='{.status.artifact.revision}')
+            Pods: $(kubectl get pods -n apps --no-headers 2>/dev/null | wc -l || echo 0)</pre>" > /usr/share/nginx/html/index.html &&
+            sleep 30
+          done & nginx -g 'daemon off;'
         ports:
         - containerPort: 80
+
