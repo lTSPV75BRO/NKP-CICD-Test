@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kafka
+  labels:
+    name: kafka
+    kubernetes.io/metadata.name: kafka
+    pod-security.kubernetes.io/enforce: privileged  # Strimzi needs privileged access
+    strimzi.io/kind: Kafka     # Helps Strimzi operator discover this namespace
+
