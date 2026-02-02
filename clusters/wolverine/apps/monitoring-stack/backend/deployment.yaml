@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monitoring-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: monitoring-backend
+  template:
+    metadata:
+      labels:
+        app: monitoring-backend
+    spec:
+      serviceAccountName: monitoring-sa
+      containers:
+      - name: backend
+        image: monitoring-backend:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: KAFKA_BOOTSTRAP
+          value: "my-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"

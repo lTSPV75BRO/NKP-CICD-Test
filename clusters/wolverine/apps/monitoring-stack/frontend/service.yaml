@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: test-dashboard
+  name: monitoring-frontend
   annotations:
     metallb.universe.tf/address-pool: metallb
 spec:
   type: LoadBalancer
   selector:
-    app: test-website
+    app: monitoring-frontend
   ports:
   - port: 80
     targetPort: 80
