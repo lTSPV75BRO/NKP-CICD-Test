@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monitoring-backend
+  namespace: apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: monitoring-backend
+  template:
+    metadata:
+      labels:
+        app: monitoring-backend
+    spec:
+      serviceAccountName: monitoring-sa
+      containers:
+      - name: backend
+        image: nginx:alpine
+        command: ["/bin/sh"]
+        args: ["-c"]
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: monitoring-backend
+  namespace: apps
+  annotations:
+    metallb.universe.tf/address-pool: metallb
+spec:
+  type: LoadBalancer
+  selector:
+    app: monitoring-backend
+  ports:
+  - port: 8080
+    targetPort: 8080
