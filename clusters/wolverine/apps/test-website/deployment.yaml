@@ -12,7 +12,7 @@ spec:
       labels:
         app: test-website
     spec:
-      serviceAccountName: default  # ✅ FIXED: Use default SA
+      serviceAccountName: flux-status  # ✅ Custom SA with RBAC
       containers:
       - name: dashboard
         image: nginx:alpine
@@ -20,14 +20,50 @@ spec:
         args:
         - -c
         - |
-          apk add --no-cache curl jq procps &&
+          apk add --no-cache curl jq &&
           while true; do
-            echo "<h1>NKP-CICD Live $(date)</h1>
-            <pre>Flux: $(kubectl get kustomizations -n flux-workloads -o jsonpath='{range .items[*]}{.metadata.name}: {.status.ready}{"\n"}{end}')
-            Git: $(kubectl get gitrepository kafka-infra -n flux-workloads -o jsonpath='{.status.artifact.revision}')
-            Pods: $(kubectl get pods -n apps --no-headers 2>/dev/null | wc -l || echo 0)</pre>" > /usr/share/nginx/html/index.html &&
-            sleep 30
-          done & nginx -g 'daemon off;'
+            FLUX=$(kubectl get kustomizations --no-headers -n flux-workloads 2>/dev/null || echo "Checking...")
+            GIT=$(kubectl get gitrepository kafka-infra -o jsonpath='{.status.artifact.revision}' -n flux-workloads 2>/dev/null || echo "kafka-infra")
+            PODS=$(kubectl get pods --no-headers -n apps 2>/dev/null | wc -l || echo "0")
+            
+            cat > /usr/share/nginx/html/index.html << EOF
+<!DOCTYPE html>
+<html>
+<head><title>NKP-CICD Live</title><meta http-equiv="refresh" content="15"><style>
+body{font-family:Arial;background:linear-gradient(45deg,#667eea,#764ba2);color:white;padding:40px;text-align:center;}
+.card{background:rgba(255,255,255,0.15);padding:25px;margin:15px;border-radius:15px;display:inline-block;min-width:300px;}
+h1{font-size:2.5em;margin-bottom:10px;}
+pre{font-size:14px;background:rgba(0,0,0,0.3);padding:15px;border-radius:10px;margin:10px;text-align:left;max-height:200px;overflow:auto;}
+</style></head>
+<body>
+<h1>🚀 NKP-CICD Flux Dashboard</h1>
+<p style="font-size:1.2em;">Updated: $(date)</p>
+
+<div class="card">
+  <h2>🔄 Flux Status</h2>
+  <pre>${FLUX}</pre>
+</div>
+
+<div class="card">
+  <h2>📦 Git Revision</h2>
+  <pre>${GIT}</pre>
+</div>
+
+<div class="card">
+  <h2>🐳 Apps Namespace</h2>
+  <p>Pods: ${PODS}</p>
+  <p>Service: 10.48.104.92</p>
+</div>
+
+<div class="card">
+  <h2>🐙 Kafka Operator</h2>
+  <p>$(kubectl get pods -n kafka --no-headers -l name=strimzi-cluster-operator 2>/dev/null | wc -l || echo "0") pods</p>
+</div>
+</body></html>
+EOF
+            sleep 15
+          done &
+          nginx -g 'daemon off;'
         ports:
         - containerPort: 80
 
