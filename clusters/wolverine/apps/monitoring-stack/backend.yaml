@@ -19,19 +19,8 @@ spec:
         image: nginx:alpine
         ports:
         - containerPort: 8080
-        command:
-        - sh
-        - -c
-        - |
-          apk add --no-cache curl jq && 
-          while true; do 
-            POD_COUNT=$(kubectl get pods --no-headers -n apps 2>/dev/null | wc -l || echo 0)
-            SVC_COUNT=$(kubectl get svc --no-headers -n apps 2>/dev/null | wc -l || echo 0)
-            kubectl get svc -n apps -o jsonpath='{range .items[*]}{.metadata.name}:{.status.loadBalancer.ingress[0].ip}{"\n"}{end}' > /tmp/ips 2>/dev/null || true
-            echo "{\"pods\":$POD_COUNT,\"services\":$SVC_COUNT,\"ips\":$(cat /tmp/ips 2>/dev/null || echo \"{}\")}" > /usr/share/nginx/html/status.json
-            sleep 5
-          done &
-          nginx -g 'daemon off;'
+        command: ["/bin/sh"]
+        args: ["apk add curl jq && while true; do echo '{\"pods\":$(kubectl get pods -n apps --no-headers 2>/dev/null|wc -l),\"services\":$(kubectl get svc -n apps --no-headers 2>/dev/null|wc -l),\"time\":\"$(date)\"}' > /usr/share/nginx/html/status.json; sleep 5; done & nginx -g daemon off;"]
 ---
 apiVersion: v1
 kind: Service
