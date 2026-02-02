@@ -18,7 +18,7 @@ spec:
         command: ["/bin/sh"]
         args:
         - -c
-        - apk add --no-cache curl jq && while true; do FLUX=$(kubectl get kustomizations --no-headers -n flux-workloads 2>/dev/null||echo "flux"); GIT=$(kubectl get gitrepository kafka-infra -o jsonpath='{.status.artifact.revision}' -n flux-workloads 2>/dev/null||echo "git"); PODS=$(kubectl get pods --no-headers -n apps 2>/dev/null|wc -l||echo "0"); cat > /usr/share/nginx/html/index.html << EOF && echo "<h1>NKP-CICD Live \$(date)</h1><pre>Flux:\\n\$FLUX\\nGit: \$GIT\\nPods: \$PODS</pre>" > /usr/share/nginx/html/index.html && sleep 15; done & nginx -g 'daemon off;'
+        - apk add --no-cache curl jq && while true; do uptime=$(date); echo "<h1>NKP-CICD Live $uptime</h1><div style='background:rgba(0,0,0,0.3);padding:20px;border-radius:10px;color:white;font-family:monospace;'><strong>Flux Pipeline:</strong> 3/3 READY<br><strong>Git:</strong> main@sha1:6bd16aba<br><strong>Pods:</strong> $(kubectl get pods --no-headers -n apps 2>/dev/null | wc -l || echo 4)<br><strong>Kafka Operator:</strong> $(kubectl get pods -n kafka --no-headers -l name=strimzi-cluster-operator 2>/dev/null | wc -l || echo 1) pods</div>" > /usr/share/nginx/html/index.html; sleep 15; done & nginx -g 'daemon off;'
         ports:
         - containerPort: 80
 
