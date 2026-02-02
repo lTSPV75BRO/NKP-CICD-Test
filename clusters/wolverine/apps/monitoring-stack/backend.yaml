@@ -17,10 +17,11 @@ spec:
       containers:
       - name: backend
         image: nginx:alpine
-        command: ["/bin/sh"]
-        args: ["-c"]
         ports:
         - containerPort: 8080
+        command: ["/bin/sh","-c"]
+        args:
+        - apk add --no-cache curl jq && while true; do POD_COUNT=$(kubectl get pods --no-headers -n apps 2>/dev/null|wc -l); SVC_COUNT=$(kubectl get svc --no-headers -n apps 2>/dev/null|wc -l); echo "{\"pods\":$POD_COUNT,\"services\":$SVC_COUNT,\"timestamp\":\"$(date)\"}" > /usr/share/nginx/html/status.json && sleep 5; done & echo '<!DOCTYPE html><html><body><pre id="data">Loading...</pre><script>setInterval(()=>{fetch("/status.json").then(r=>r.json()).then(d=>document.getElementById("data").innerHTML=JSON.stringify(d,null,2))},3000);</script></body></html>' > /usr/share/nginx/html/index.html && nginx -g daemon off;
 ---
 apiVersion: v1
 kind: Service

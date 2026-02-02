@@ -18,10 +18,9 @@ spec:
         image: nginx:alpine
         ports:
         - containerPort: 80
-        command: ["/bin/sh"]
-        args: ["-c", "apk add --no-cache curl && cat > /usr/share/nginx/html/index.html << HTML && nginx -g 'daemon off;'"]
-        volumeMounts: []
-      volumes: []
+        command: ["/bin/sh","-c"]
+        args:
+        - apk add --no-cache curl && echo '<!DOCTYPE html><html><head><title>NKP Monitoring</title><meta http-equiv="refresh" content="10"><style>body{font-family:Arial;background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:40px;text-align:center;}</style></head><body><h1>🚀 NKP-CICD Live Monitoring</h1><div id="data">Loading cluster status...</div><script>fetch("http://monitoring-backend.apps.svc.cluster.local:8080/api/status").then(r=>r.json()).then(d=>document.getElementById("data").innerHTML=`<pre>${JSON.stringify(d,null,2)}</pre>`).catch(()=>document.getElementById("data").innerHTML="Backend not ready");</script></body></html>' > /usr/share/nginx/html/index.html && nginx -g daemon off;
 ---
 apiVersion: v1
 kind: Service
@@ -37,3 +36,4 @@ spec:
   ports:
   - port: 80
     targetPort: 80
+
