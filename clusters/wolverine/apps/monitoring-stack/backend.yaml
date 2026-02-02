@@ -19,9 +19,19 @@ spec:
         image: nginx:alpine
         ports:
         - containerPort: 8080
-        command: ["/bin/sh","-c"]
-        args:
-        - apk add --no-cache curl jq && while true; do POD_COUNT=$(kubectl get pods --no-headers -n apps 2>/dev/null|wc -l); SVC_COUNT=$(kubectl get svc --no-headers -n apps 2>/dev/null|wc -l); echo "{\"pods\":$POD_COUNT,\"services\":$SVC_COUNT,\"timestamp\":\"$(date)\"}" > /usr/share/nginx/html/status.json && sleep 5; done & echo '<!DOCTYPE html><html><body><pre id="data">Loading...</pre><script>setInterval(()=>{fetch("/status.json").then(r=>r.json()).then(d=>document.getElementById("data").innerHTML=JSON.stringify(d,null,2))},3000);</script></body></html>' > /usr/share/nginx/html/index.html && nginx -g daemon off;
+        command:
+        - sh
+        - -c
+        - |
+          apk add --no-cache curl jq && 
+          while true; do 
+            POD_COUNT=$(kubectl get pods --no-headers -n apps 2>/dev/null | wc -l || echo 0)
+            SVC_COUNT=$(kubectl get svc --no-headers -n apps 2>/dev/null | wc -l || echo 0)
+            kubectl get svc -n apps -o jsonpath='{range .items[*]}{.metadata.name}:{.status.loadBalancer.ingress[0].ip}{"\n"}{end}' > /tmp/ips 2>/dev/null || true
+            echo "{\"pods\":$POD_COUNT,\"services\":$SVC_COUNT,\"ips\":$(cat /tmp/ips 2>/dev/null || echo \"{}\")}" > /usr/share/nginx/html/status.json
+            sleep 5
+          done &
+          nginx -g 'daemon off;'
 ---
 apiVersion: v1
 kind: Service
