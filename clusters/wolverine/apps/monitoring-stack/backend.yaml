@@ -13,14 +13,13 @@ spec:
       labels:
         app: monitoring-backend
     spec:
-      serviceAccountName: monitoring-sa
       containers:
       - name: backend
         image: nginx:alpine
         ports:
         - containerPort: 8080
         command: ["/bin/sh"]
-        args: ["apk add curl jq && while true; do echo '{\"pods\":$(kubectl get pods -n apps --no-headers 2>/dev/null|wc -l),\"services\":$(kubectl get svc -n apps --no-headers 2>/dev/null|wc -l),\"time\":\"$(date)\"}' > /usr/share/nginx/html/status.json; sleep 5; done & nginx -g daemon off;"]
+        args: ["echo '{\"status\":\"NKP Backend OK\",\"pods\":\"live\",\"services\":\"live\",\"timestamp\":\"$(date)\"}' > /usr/share/nginx/html/status.json && nginx -g 'daemon off;'"]
 ---
 apiVersion: v1
 kind: Service

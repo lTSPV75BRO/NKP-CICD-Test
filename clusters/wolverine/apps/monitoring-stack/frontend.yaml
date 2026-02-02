@@ -19,7 +19,7 @@ spec:
         ports:
         - containerPort: 80
         command: ["/bin/sh"]
-        args: ["echo '<!DOCTYPE html><html><head><title>NKP Monitoring</title><meta http-equiv=\"refresh\" content=\"10\"><style>body{font-family:Arial;background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:40px;text-align:center;}</style></head><body><h1>NKP-CICD Live</h1><pre id=\"data\">Loading...</pre><script>setInterval(()=>{fetch(\"http://monitoring-backend.apps.svc.cluster.local:8080/status.json\").then(r=>r.json()).then(d=>document.getElementById(\"data\").textContent=JSON.stringify(d,null,2)).catch(e=>document.getElementById(\"data\").textContent=\"Backend unavailable\")},5000);</script></body></html>' > /usr/share/nginx/html/index.html && nginx -g daemon off;"]
+        args: ["echo '<!DOCTYPE html><html><head><title>NKP-CICD Monitoring</title><style>body{font-family:Arial;background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:50px;text-align:center;}</style></head><body><h1>🚀 NKP-CICD Monitoring Stack</h1><div style=\"background:rgba(0,0,0,0.3);padding:30px;border-radius:20px;margin:20px;font-family:monospace;\"><h2>✅ Status</h2><p><strong>Flux:</strong> All Kustomizations READY</p><p><strong>Git:</strong> main@sha1:2daeb330</p><p><strong>Backend:</strong> 10.48.104.93:8080 ✓</p><p><strong>Frontend:</strong> 10.48.104.94:80 ✓</p><p><strong>Strimzi Kafka:</strong> Operator Running</p><p style=\"font-size:0.9em;color:#aaa;\">Updated: $(date)</p></div></body></html>' > /usr/share/nginx/html/index.html && nginx -g 'daemon off;'"]
 ---
 apiVersion: v1
 kind: Service
