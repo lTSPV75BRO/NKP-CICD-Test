@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-html
+data:
+  index.html: |
+$(cat clusters/wolverine/apps/monitoring-stack/frontend/static/index.html | sed 's|fetch("/api/status")|fetch("http://monitoring-backend.apps.svc.cluster.local:8080/api/status")|g')
