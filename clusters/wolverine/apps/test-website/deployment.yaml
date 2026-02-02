@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-website
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: test-website
+  template:
+    metadata:
+      labels:
+        app: test-website
+    spec:
+      serviceAccountName: flux-status
+      containers:
+      - name: website
+        image: nginx:alpine
+        command: ["/bin/sh"]
+        args: ["-c", "apk add curl jq && /usr/local/bin/flux-status.sh & nginx -g 'daemon off;'"]
+        ports:
+        - containerPort: 80
