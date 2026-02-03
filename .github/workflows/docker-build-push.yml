@@ -1,0 +1,66 @@
+# Build monitoring-backend and monitoring-frontend and push to Docker Hub on git push.
+#
+# Required GitHub secrets:
+#   DOCKERHUB_USERNAME - your Docker Hub username (e.g. prajwalnutant)
+#   DOCKERHUB_TOKEN    - Docker Hub access token (Settings → Security → Access Tokens)
+#
+# Optional: set default in repo Variables (Settings → Secrets and variables → Actions → Variables)
+#   DOCKERHUB_USERNAME - if not set, add it as a secret or variable.
+
+name: Build and push Docker images
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'monitoring-backend/**'
+      - 'monitoring-frontend/**'
+      - '.github/workflows/docker-build-push.yml'
+
+env:
+  REGISTRY: docker.io
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract short SHA
+        id: sha
+        run: echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Build and push monitoring-backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./monitoring-backend
+          file: ./monitoring-backend/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/monitoring-backend:${{ steps.sha.outputs.short_sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/monitoring-backend:latest
+
+      - name: Build and push monitoring-frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./monitoring-frontend
+          file: ./monitoring-frontend/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/monitoring-frontend:${{ steps.sha.outputs.short_sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/monitoring-frontend:latest

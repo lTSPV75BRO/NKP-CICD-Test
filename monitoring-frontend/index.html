@@ -72,6 +72,12 @@
       font-size: 0.9rem;
     }
     button.refresh:hover { background: var(--border); }
+    .api-docs-link {
+      color: var(--muted);
+      font-size: 0.85rem;
+      text-decoration: none;
+    }
+    .api-docs-link:hover { color: var(--accent); }
     .header-controls {
       display: flex;
       align-items: center;
@@ -148,6 +154,15 @@
           <option value="">All namespaces</option>
         </select>
         <div id="health-badge" class="health-badge loading"><span class="dot"></span> <span>Checking…</span></div>
+        <label for="interval-select" class="namespace-label">Refresh:</label>
+        <select id="interval-select" onchange="applyInterval()">
+          <option value="15">15s</option>
+          <option value="30" selected>30s</option>
+          <option value="60">60s</option>
+          <option value="0">Off</option>
+        </select>
+        <div id="health-badge" class="health-badge loading"><span class="dot"></span> <span>Checking…</span></div>
+        <a href="/api/docs" target="_blank" rel="noopener" class="api-docs-link">API docs</a>
         <button class="refresh" type="button" onclick="loadAll()">Refresh</button>
       </div>
     </div>
@@ -173,6 +188,16 @@
         <div id="flux-k-value" class="value loading">—</div>
         <div class="meta" id="flux-k-meta">—</div>
       </div>
+      <div class="card">
+        <h2>Flux HelmReleases</h2>
+        <div id="flux-helm-value" class="value loading">—</div>
+        <div class="meta" id="flux-helm-meta">—</div>
+      </div>
+      <div class="card">
+        <h2>Services</h2>
+        <div id="services-value" class="value loading">—</div>
+        <div class="meta" id="services-meta">—</div>
+      </div>
     </div>
 
     <div class="card" style="margin-bottom: 1rem;">
@@ -184,6 +209,10 @@
       <div id="pods-table-wrap"><p class="loading">Loading…</p></div>
     </div>
     <div class="card" style="margin-bottom: 1rem;">
+      <h2>Services</h2>
+      <div id="services-table-wrap"><p class="loading">Loading…</p></div>
+    </div>
+    <div class="card" style="margin-bottom: 1rem;">
       <h2>Deployments</h2>
       <div id="deployments-table-wrap"><p class="loading">Loading…</p></div>
     </div>
@@ -192,16 +221,23 @@
       <div id="flux-k-table-wrap"><p class="loading">Loading…</p></div>
     </div>
     <div class="card" style="margin-bottom: 1rem;">
+      <h2>Flux HelmReleases</h2>
+      <div id="flux-helm-table-wrap"><p class="loading">Loading…</p></div>
+    </div>
+    <div class="card" style="margin-bottom: 1rem;">
       <h2>Flux GitRepositories</h2>
       <div id="flux-git-table-wrap"><p class="loading">Loading…</p></div>
     </div>
 
     <p class="timestamp" id="page-timestamp">—</p>
+    <p class="timestamp" id="page-relative">—</p>
   </div>
 
   <script>
     // Same origin when behind Ingress (path /api -> backend). If using separate LoadBalancers, set e.g. window.API_BASE = 'http://backend-ip:8080' before load.
     const API = window.API_BASE || '';
+    let lastUpdatedAt = null;
+    let refreshIntervalId = null;
 
     function setHealth(healthy) {
       const el = document.getElementById('health-badge');
@@ -290,6 +326,45 @@
         '</tbody></table>';
     }
 
+    function renderServices(data) {
+      const wrap = document.getElementById('services-table-wrap');
+      if (data.error) {
+        wrap.innerHTML = '<p class="error-msg">' + escapeHtml(data.error) + '</p>';
+        return;
+      }
+      const services = data.services || [];
+      document.getElementById('services-value').textContent = services.length;
+      document.getElementById('services-value').className = 'value';
+      const nsSel = document.getElementById('namespace-select').value;
+      document.getElementById('services-meta').textContent = nsSel ? 'Namespace: ' + nsSel : 'All namespaces';
+      if (services.length === 0) {
+        wrap.innerHTML = '<p class="muted">No services</p>';
+        return;
+      }
+      wrap.innerHTML = '<table><thead><tr><th>Name</th><th>Namespace</th><th>Type</th><th>Cluster IP</th><th>Ports</th></tr></thead><tbody>' +
+        services.map(s => '<tr><td>' + escapeHtml(s.name) + '</td><td>' + escapeHtml(s.namespace) + '</td><td>' + escapeHtml(s.type || '—') + '</td><td>' + escapeHtml(s.clusterIP || '—') + '</td><td>' + escapeHtml(s.ports || '—') + '</td></tr>').join('') +
+        '</tbody></table>';
+    }
+
+    function renderFluxHelm(data) {
+      const wrap = document.getElementById('flux-helm-table-wrap');
+      const releases = data.helmreleases || [];
+      document.getElementById('flux-helm-value').textContent = data.error ? '—' : releases.length;
+      document.getElementById('flux-helm-value').className = 'value';
+      document.getElementById('flux-helm-meta').textContent = data.error || (releases.length + ' HelmReleases');
+      if (data.error) {
+        wrap.innerHTML = '<p class="muted">' + escapeHtml(data.error) + '</p>';
+        return;
+      }
+      if (releases.length === 0) {
+        wrap.innerHTML = '<p class="muted">No HelmReleases</p>';
+        return;
+      }
+      wrap.innerHTML = '<table><thead><tr><th>Name</th><th>Namespace</th><th>Ready</th><th>Message</th></tr></thead><tbody>' +
+        releases.map(r => '<tr><td>' + escapeHtml(r.name) + '</td><td>' + escapeHtml(r.namespace) + '</td><td><span class="status-dot ' + (r.ready ? 'ready' : 'notready') + '"></span>' + (r.ready ? 'Yes' : 'No') + '</td><td>' + escapeHtml(r.message || '') + '</td></tr>').join('') +
+        '</tbody></table>';
+    }
+
     function renderFluxGit(data) {
       const wrap = document.getElementById('flux-git-table-wrap');
       const repos = data.gitrepositories || [];
@@ -304,6 +379,32 @@
       wrap.innerHTML = '<table><thead><tr><th>Name</th><th>Namespace</th><th>Ready</th><th>URL</th><th>Revision</th></tr></thead><tbody>' +
         repos.map(r => '<tr><td>' + escapeHtml(r.name) + '</td><td>' + escapeHtml(r.namespace) + '</td><td><span class="status-dot ' + (r.ready ? 'ready' : 'notready') + '"></span>' + (r.ready ? 'Yes' : 'No') + '</td><td>' + escapeHtml(r.url || '—') + '</td><td>' + escapeHtml(r.revision || '—') + '</td></tr>').join('') +
         '</tbody></table>';
+    }
+
+    function relativeTime(isoStr) {
+      if (!isoStr) return '';
+      const d = new Date(isoStr);
+      const now = new Date();
+      const sec = Math.floor((now - d) / 1000);
+      if (sec < 10) return 'just now';
+      if (sec < 60) return sec + 's ago';
+      const min = Math.floor(sec / 60);
+      if (min < 60) return min + ' min ago';
+      const hr = Math.floor(min / 60);
+      if (hr < 24) return hr + ' hr ago';
+      return Math.floor(hr / 24) + ' days ago';
+    }
+
+    function updateRelativeTime() {
+      const el = document.getElementById('page-relative');
+      if (lastUpdatedAt) el.textContent = 'Updated ' + relativeTime(lastUpdatedAt);
+    }
+
+    function applyInterval() {
+      const sec = parseInt(document.getElementById('interval-select').value, 10);
+      if (refreshIntervalId) clearInterval(refreshIntervalId);
+      refreshIntervalId = null;
+      if (sec > 0) refreshIntervalId = setInterval(loadAll, sec * 1000);
     }
 
     function escapeHtml(s) {
@@ -331,18 +432,22 @@
       const ns = document.getElementById('namespace-select').value;
 
       try {
-        const [health, nodes, namespaces, pods, deployments, fluxK, fluxGit] = await Promise.all([
+        const [health, nodes, namespaces, pods, services, deployments, fluxK, fluxHelm, fluxGit] = await Promise.all([
           fetchApi('/health'),
           fetchApi('/nodes'),
           fetchApi('/namespaces'),
           fetchApi('/pods', ns ? { namespace: ns } : {}),
+          fetchApi('/services', ns ? { namespace: ns } : {}),
           fetchApi('/deployments', ns ? { namespace: ns } : {}),
           fetchApi('/flux/kustomizations'),
+          fetchApi('/flux/helmreleases'),
           fetchApi('/flux/gitrepositories'),
         ]);
 
         setHealth(health.status === 'healthy');
-        document.getElementById('page-timestamp').textContent = 'Last updated: ' + (health.timestamp || new Date().toISOString());
+        lastUpdatedAt = health.timestamp || new Date().toISOString();
+        document.getElementById('page-timestamp').textContent = 'Last updated: ' + lastUpdatedAt;
+        updateRelativeTime();
 
         // Populate namespace dropdown (keep current selection if still present)
         const sel = document.getElementById('namespace-select');
@@ -358,8 +463,10 @@
 
         renderNodes(nodes);
         renderPods(pods);
+        renderServices(services);
         renderDeployments(deployments);
         renderFluxK(fluxK);
+        renderFluxHelm(fluxHelm);
         renderFluxGit(fluxGit);
       } catch (err) {
         setHealth(false);
@@ -367,17 +474,22 @@
         document.getElementById('nodes-table-wrap').innerHTML = '<p class="error-msg">Failed to reach API. Is the backend running? Use Ingress so frontend and API are same-origin, or enable CORS.</p>';
         document.getElementById('pods-table-wrap').innerHTML = '';
         document.getElementById('deployments-table-wrap').innerHTML = '';
+        document.getElementById('services-table-wrap').innerHTML = '';
         document.getElementById('flux-k-table-wrap').innerHTML = '';
+        document.getElementById('flux-helm-table-wrap').innerHTML = '';
         document.getElementById('flux-git-table-wrap').innerHTML = '';
         document.getElementById('nodes-value').textContent = '—';
         document.getElementById('pods-value').textContent = '—';
         document.getElementById('deployments-value').textContent = '—';
+        document.getElementById('services-value').textContent = '—';
         document.getElementById('flux-k-value').textContent = '—';
+        document.getElementById('flux-helm-value').textContent = '—';
       }
     }
 
     loadAll();
-    setInterval(loadAll, 30000);
+    applyInterval();
+    setInterval(updateRelativeTime, 10000);
   </script>
 </body>
 </html>

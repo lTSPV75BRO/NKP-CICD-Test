@@ -134,6 +134,30 @@ def list_pods(namespace: str | None = None):
         return {"error": e.reason or str(e), "pods": [], "count": 0, "timestamp": _now_iso()}
 
 
+@app.get("/api/services")
+def list_services(namespace: str | None = None):
+    """List services (optional ?namespace=...)."""
+    try:
+        if namespace:
+            ret = v1_core.list_namespaced_service(namespace=namespace)
+        else:
+            ret = v1_core.list_service_for_all_namespaces()
+        services = []
+        for i in ret.items:
+            svc_type = i.spec.type if i.spec else "ClusterIP"
+            ports = ",".join(str(p.port) for p in (i.spec.ports or [])) if i.spec and i.spec.ports else "—"
+            services.append({
+                "name": i.metadata.name,
+                "namespace": i.metadata.namespace,
+                "type": svc_type,
+                "clusterIP": i.spec.cluster_ip if i.spec else None,
+                "ports": ports,
+            })
+        return {"services": services, "count": len(services), "timestamp": _now_iso()}
+    except ApiException as e:
+        return {"error": e.reason or str(e), "services": [], "count": 0, "timestamp": _now_iso()}
+
+
 @app.get("/api/deployments")
 def list_deployments(namespace: str | None = None):
     """List deployments and their ready/desired replicas."""

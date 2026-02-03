@@ -2,6 +2,20 @@
 
 Backend polls the Kubernetes API (nodes, pods, deployments, Flux Kustomizations/HelmReleases/GitRepositories). Frontend displays the data via the backend API.
 
+## CI/CD – Auto build and push to Docker Hub
+
+On every **git push to `main`** (when `monitoring-backend/`, `monitoring-frontend/`, or the workflow file change), GitHub Actions builds both images and pushes them to Docker Hub.
+
+**One-time setup in your GitHub repo:**
+
+1. **Settings → Secrets and variables → Actions**
+2. Add **Repository secrets**:
+   - `DOCKERHUB_USERNAME` – your Docker Hub username (e.g. `prajwalnutant`)
+   - `DOCKERHUB_TOKEN` – a Docker Hub [Access Token](https://hub.docker.com/settings/security) (create with “Read, Write, Delete” for repos)
+
+Workflow file: [`.github/workflows/docker-build-push.yml`](../../../../.github/workflows/docker-build-push.yml).  
+Images are tagged as `DOCKERHUB_USERNAME/monitoring-backend:latest` and `…/monitoring-frontend:latest`, plus a short git SHA tag (e.g. `…:abc1234`). After a successful run, point your cluster at `docker.io/DOCKERHUB_USERNAME/monitoring-backend:latest` (and frontend) and redeploy.
+
 ## Fix ImagePullBackOff / ErrImagePull
 
 The cluster tries to pull `monitoring-backend:latest` and `monitoring-frontend:latest` from the default registry; those images only exist after you build (and optionally push) them.
@@ -68,7 +82,7 @@ kubectl apply -k clusters/wolverine/apps/monitoring-stack
 
 ## Access
 
-Open the **frontend** URL (e.g. `http://<frontend-LoadBalancer-IP>/`). The frontend nginx proxies `/api` to the backend inside the cluster, so one URL is enough. With Ingress, use your configured host (e.g. `http://monitoring.local`).
+Open the **frontend** URL (e.g. `http://<frontend-LoadBalancer-IP>/`). The frontend nginx proxies `/api` to the backend inside the cluster, so one URL is enough. With Ingress, use your configured host (e.g. `http://monitoring.local`). The frontend image uses an entrypoint that injects the cluster DNS resolver from `/etc/resolv.conf` into nginx so `/api` requests resolve the backend correctly (avoids 502).
 
 ## Troubleshooting (“Still same” / no data)
 
@@ -96,13 +110,16 @@ Open the **frontend** URL (e.g. `http://<frontend-LoadBalancer-IP>/`). The front
 | Endpoint | Description |
 |----------|-------------|
 | `GET /api/health` | Cluster API health |
+| `GET /api/namespaces` | Cluster namespaces (for UI filter) |
 | `GET /api/nodes` | Nodes and status |
 | `GET /api/pods` | Pods (optional `?namespace=...`) |
+| `GET /api/services` | Services (optional `?namespace=...`) |
 | `GET /api/deployments` | Deployments (optional `?namespace=...`) |
 | `GET /api/flux/kustomizations` | Flux Kustomizations |
 | `GET /api/flux/helmreleases` | Flux HelmReleases |
 | `GET /api/flux/gitrepositories` | Flux GitRepositories |
 | `GET /api/workloads` | Aggregated summary |
+| `GET /api/docs` | OpenAPI (Swagger) UI |
 
 ## RBAC
 
