@@ -68,8 +68,28 @@ kubectl apply -k clusters/wolverine/apps/monitoring-stack
 
 ## Access
 
-- **With Ingress**: Use one host (e.g. `monitoring.local`) so `/` is the frontend and `/api` is the backend. Add `monitoring.local` to `/etc/hosts` pointing at the Ingress controller’s IP. Open `http://monitoring.local`.
-- **Without Ingress**: Frontend and backend get separate LoadBalancer IPs. Open the frontend IP in the browser; for API calls to work, either use Ingress or set `window.API_BASE = 'http://<backend-ip>:8080'` (e.g. via a small config page or build-time env).
+Open the **frontend** URL (e.g. `http://<frontend-LoadBalancer-IP>/`). The frontend nginx proxies `/api` to the backend inside the cluster, so one URL is enough. With Ingress, use your configured host (e.g. `http://monitoring.local`).
+
+## Troubleshooting (“Still same” / no data)
+
+1. **Check pods** – Backend must be Running for the UI to show data:
+   ```bash
+   kubectl get pods -n apps
+   ```
+   If `monitoring-backend` is `ImagePullBackOff` or `CrashLoopBackOff`, fix the image (push to registry and `kustomize edit set image`), then redeploy.
+
+2. **Check API through the frontend** – From your machine, using the frontend LoadBalancer IP:
+   ```bash
+   curl -s http://<frontend-IP>/api/health
+   ```
+   - **JSON** (`{"status":"healthy",...}`) → proxy and backend work; if the browser still shows “Failed to reach API”, try a hard refresh or another browser.
+   - **502 Bad Gateway** → backend pod not running or not ready; fix the backend first.
+   - **404** → frontend image may be old (no proxy); rebuild and push the frontend image, then `kubectl rollout restart deployment/monitoring-frontend -n apps`.
+
+3. **Restart frontend after image change**:
+   ```bash
+   kubectl rollout restart deployment/monitoring-frontend -n apps
+   ```
 
 ## Backend API (same host under `/api`)
 

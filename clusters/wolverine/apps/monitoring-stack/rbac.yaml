@@ -10,7 +10,7 @@ metadata:
   name: monitoring-viewer
 rules:
 - apiGroups: [""]
-  resources: ["pods","services","nodes"]
+  resources: ["pods","services","nodes","namespaces"]
   verbs: ["get","list"]
 - apiGroups: ["apps"]
   resources: ["deployments"]
