@@ -1,13 +1,17 @@
-# See nginx.conf.template - entrypoint.sh generates default.conf from it at container start
 server {
     listen 80;
     server_name _;
     root /usr/share/nginx/html;
     index index.html;
 
-    # Proxy all /api requests to backend (no resolver - use this if 502 persists with template)
+    # Resolve backend at request time (avoids 502 if backend wasn't ready at nginx start)
+    # __RESOLVER_IP__ is replaced at container start from /etc/resolv.conf
+    resolver __RESOLVER_IP__ valid=5s ipv6=off;
+    set $backend "http://monitoring-backend.apps.svc.cluster.local:8080";
+
+    # Proxy all /api requests to backend (same namespace)
     location /api {
-        proxy_pass http://monitoring-backend:8080$request_uri;
+        proxy_pass $backend$request_uri;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -15,8 +19,10 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_connect_timeout 10s;
         proxy_read_timeout 30s;
+        proxy_next_upstream error timeout http_502 http_503;
     }
 
+    # SPA: serve index.html for all other paths
     location / {
         try_files $uri $uri/ /index.html;
     }

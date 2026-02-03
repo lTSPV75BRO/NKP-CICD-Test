@@ -83,7 +83,7 @@ Open the **frontend** URL (e.g. `http://<frontend-LoadBalancer-IP>/`). The front
    curl -s http://<frontend-IP>/api/health
    ```
    - **JSON** (`{"status":"healthy",...}`) → proxy and backend work; if the browser still shows “Failed to reach API”, try a hard refresh or another browser.
-   - **502 Bad Gateway** → backend pod not running or not ready; fix the backend first.
+   - **502 Bad Gateway** → backend pod not running or not ready. Run `kubectl get pods -n apps` and `kubectl logs deployment/monitoring-backend -n apps`. Ensure the backend image is built/pushed and the backend pod is Running. If the backend is Running but 502 persists, the frontend nginx may be using a wrong cluster DNS IP; see the comment in `monitoring-frontend/nginx.conf` (resolver) and set your cluster’s kube-dns IP if needed.
    - **404** → frontend image may be old (no proxy); rebuild and push the frontend image, then `kubectl rollout restart deployment/monitoring-frontend -n apps`.
 
 3. **Restart frontend after image change**:
