@@ -341,8 +341,8 @@
         wrap.innerHTML = '<p class="muted">No services</p>';
         return;
       }
-      wrap.innerHTML = '<table><thead><tr><th>Name</th><th>Namespace</th><th>Type</th><th>Cluster IP</th><th>Ports</th></tr></thead><tbody>' +
-        services.map(s => '<tr><td>' + escapeHtml(s.name) + '</td><td>' + escapeHtml(s.namespace) + '</td><td>' + escapeHtml(s.type || '—') + '</td><td>' + escapeHtml(s.clusterIP || '—') + '</td><td>' + escapeHtml(s.ports || '—') + '</td></tr>').join('') +
+      wrap.innerHTML = '<table><thead><tr><th>Name</th><th>Namespace</th><th>Type</th><th>Cluster IP</th><th>External IP</th><th>Ports</th></tr></thead><tbody>' +
+        services.map(s => '<tr><td>' + escapeHtml(s.name) + '</td><td>' + escapeHtml(s.namespace) + '</td><td>' + escapeHtml(s.type || '—') + '</td><td>' + escapeHtml(s.clusterIP || '—') + '</td><td>' + escapeHtml(s.externalIP || '—') + '</td><td>' + escapeHtml(s.ports || '—') + '</td></tr>').join('') +
         '</tbody></table>';
     }
 

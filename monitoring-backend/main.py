@@ -159,11 +159,16 @@ def _list_services(namespace: str | None = None):
         for i in ret.items:
             svc_type = i.spec.type if i.spec else "ClusterIP"
             ports = ",".join(str(p.port) for p in (i.spec.ports or [])) if i.spec and i.spec.ports else "—"
+            external_ip = None
+            if i.status and i.status.load_balancer and i.status.load_balancer.ingress:
+                ing = i.status.load_balancer.ingress[0]
+                external_ip = ing.ip if ing.ip else (ing.hostname if ing.hostname else None)
             services.append({
                 "name": i.metadata.name,
                 "namespace": i.metadata.namespace,
                 "type": svc_type,
                 "clusterIP": i.spec.cluster_ip if i.spec else None,
+                "externalIP": external_ip,
                 "ports": ports,
             })
         return {"services": services, "count": len(services), "timestamp": _now_iso()}
