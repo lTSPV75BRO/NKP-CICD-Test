@@ -52,6 +52,8 @@ jobs:
           context: ./monitoring-backend
           file: ./monitoring-backend/Dockerfile
           push: true
+          build-args: |
+            GIT_SHA=${{ steps.sha.outputs.short_sha }}
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/monitoring-backend:${{ steps.sha.outputs.short_sha }}
             ${{ secrets.DOCKERHUB_USERNAME }}/monitoring-backend:latest

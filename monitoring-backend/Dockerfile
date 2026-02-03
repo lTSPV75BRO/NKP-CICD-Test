@@ -6,6 +6,9 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY main.py .
 
+# Set at build time so /api/health returns it (verifies which image is running)
+ARG GIT_SHA=unknown
+ENV APP_VERSION=${GIT_SHA}
 ENV PORT=8080
 EXPOSE 8080
 

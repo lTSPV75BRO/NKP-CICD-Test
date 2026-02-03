@@ -53,6 +53,10 @@ def _now_iso():
     return datetime.now(timezone.utc).isoformat()
 
 
+# Build-time version (set in Dockerfile: ENV APP_VERSION=...)
+APP_VERSION = os.environ.get("APP_VERSION", "dev")
+
+
 @app.get("/api/health")
 def health():
     """Overall health and API connectivity."""
@@ -68,6 +72,7 @@ def health():
         "kubernetes_api": "reachable" if k8s_ok else "unreachable",
         "message": message,
         "timestamp": _now_iso(),
+        "version": APP_VERSION,
     }
 
 
