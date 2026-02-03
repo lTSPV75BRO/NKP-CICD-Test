@@ -96,6 +96,7 @@ def list_nodes():
 
 
 @app.get("/api/namespaces")
+@app.get("/api/namespaces/")
 def list_namespaces():
     """List cluster namespaces (for frontend filter)."""
     try:
@@ -135,6 +136,7 @@ def list_pods(namespace: str | None = None):
 
 
 @app.get("/api/services")
+@app.get("/api/services/")
 def list_services(namespace: str | None = None):
     """List services (optional ?namespace=...)."""
     try:
