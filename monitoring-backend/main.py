@@ -38,6 +38,9 @@ app = FastAPI(
     title="NKP Monitoring API",
     description="Cluster nodes, pods, Flux workloads, and health",
     lifespan=lifespan,
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
 )
 
 app.add_middleware(
