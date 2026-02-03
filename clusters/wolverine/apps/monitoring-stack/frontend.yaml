@@ -16,7 +16,7 @@ spec:
       containers:
       - name: frontend
         image: monitoring-frontend:latest   # override: kustomize edit set image monitoring-frontend:latest=YOUR_REGISTRY/monitoring-frontend:latest
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always   # always pull so new builds (namespace selector, etc.) are served
         ports:
         - containerPort: 80
         resources:

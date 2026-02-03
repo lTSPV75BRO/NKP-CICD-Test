@@ -72,15 +72,14 @@
       font-size: 0.9rem;
     }
     button.refresh:hover { background: var(--border); }
-    .namespace-row {
+    .header-controls {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
-      margin-bottom: 1.25rem;
+      gap: 1rem;
       flex-wrap: wrap;
     }
-    .namespace-row label { color: var(--muted); font-size: 0.9rem; }
-    .namespace-row select {
+    .namespace-label { color: var(--muted); font-size: 0.9rem; white-space: nowrap; }
+    #namespace-select {
       font-family: inherit;
       background: var(--surface);
       border: 1px solid var(--border);
@@ -143,17 +142,14 @@
         <h1>NKP-CICD Cluster Monitoring</h1>
         <p class="subtitle">Nodes, pods, deployments, and Flux workloads</p>
       </div>
-      <div style="display: flex; align-items: center; gap: 1rem;">
+      <div class="header-controls">
+        <label for="namespace-select" class="namespace-label">Namespace:</label>
+        <select id="namespace-select" onchange="loadAll()">
+          <option value="">All namespaces</option>
+        </select>
         <div id="health-badge" class="health-badge loading"><span class="dot"></span> <span>Checking…</span></div>
         <button class="refresh" type="button" onclick="loadAll()">Refresh</button>
       </div>
-    </div>
-
-    <div class="namespace-row">
-      <label for="namespace-select">Namespace (pods &amp; deployments):</label>
-      <select id="namespace-select" onchange="loadAll()">
-        <option value="">All namespaces</option>
-      </select>
     </div>
 
     <div class="grid">
