@@ -435,9 +435,9 @@
         const [health, nodes, namespaces, pods, services, deployments, fluxK, fluxHelm, fluxGit] = await Promise.all([
           fetchApi('/health'),
           fetchApi('/nodes'),
-          fetchApi('/namespaces'),
+          fetchApi('/ns'),
           fetchApi('/pods', ns ? { namespace: ns } : {}),
-          fetchApi('/services', ns ? { namespace: ns } : {}),
+          fetchApi('/svc', ns ? { namespace: ns } : {}),
           fetchApi('/deployments', ns ? { namespace: ns } : {}),
           fetchApi('/flux/kustomizations'),
           fetchApi('/flux/helmreleases'),

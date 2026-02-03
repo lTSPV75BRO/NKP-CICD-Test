@@ -95,16 +95,22 @@ def list_nodes():
         return {"error": e.reason or str(e), "nodes": [], "count": 0, "timestamp": _now_iso()}
 
 
-@app.get("/api/namespaces")
-@app.get("/api/namespaces/")
-def list_namespaces():
-    """List cluster namespaces (for frontend filter)."""
+def _list_namespaces():
     try:
         ret = v1_core.list_namespace()
         names = [i.metadata.name for i in ret.items]
         return {"namespaces": sorted(names), "count": len(names), "timestamp": _now_iso()}
     except ApiException as e:
         return {"error": e.reason or str(e), "namespaces": [], "count": 0, "timestamp": _now_iso()}
+
+
+@app.get("/api/namespaces")
+@app.get("/api/namespaces/")
+@app.get("/api/ns")  # alias (some proxies block "namespaces")
+@app.get("/api/ns/")
+def list_namespaces():
+    """List cluster namespaces (for frontend filter)."""
+    return _list_namespaces()
 
 
 @app.get("/api/pods")
@@ -135,10 +141,7 @@ def list_pods(namespace: str | None = None):
         return {"error": e.reason or str(e), "pods": [], "count": 0, "timestamp": _now_iso()}
 
 
-@app.get("/api/services")
-@app.get("/api/services/")
-def list_services(namespace: str | None = None):
-    """List services (optional ?namespace=...)."""
+def _list_services(namespace: str | None = None):
     try:
         if namespace:
             ret = v1_core.list_namespaced_service(namespace=namespace)
@@ -158,6 +161,15 @@ def list_services(namespace: str | None = None):
         return {"services": services, "count": len(services), "timestamp": _now_iso()}
     except ApiException as e:
         return {"error": e.reason or str(e), "services": [], "count": 0, "timestamp": _now_iso()}
+
+
+@app.get("/api/services")
+@app.get("/api/services/")
+@app.get("/api/svc")  # alias (some proxies block "services")
+@app.get("/api/svc/")
+def list_services(namespace: str | None = None):
+    """List services (optional ?namespace=...)."""
+    return _list_services(namespace)
 
 
 @app.get("/api/deployments")
