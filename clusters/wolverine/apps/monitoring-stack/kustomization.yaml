@@ -12,4 +12,8 @@ resources:
 #   kustomize edit set image monitoring-frontend:latest=ghcr.io/YOUR_USER/monitoring-frontend:latest
 images:
 - name: monitoring-backend:latest
+  newName: docker.io/prajwalnutant/monitoring-backend
+  newTag: latest
 - name: monitoring-frontend:latest
+  newName: docker.io/prajwalnutant/monitoring-frontend
+  newTag: latest
