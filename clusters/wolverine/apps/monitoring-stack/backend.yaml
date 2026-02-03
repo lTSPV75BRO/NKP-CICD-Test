@@ -17,7 +17,7 @@ spec:
       containers:
       - name: backend
         image: monitoring-backend:latest   # override with registry: kustomize edit set image monitoring-backend:latest=YOUR_REGISTRY/monitoring-backend:latest
-        imagePullPolicy: IfNotPresent     # use Never for kind/minikube after loading image
+        imagePullPolicy: Always   # always pull so rollout gets the image pushed by CI
         ports:
         - containerPort: 8080
         env:
