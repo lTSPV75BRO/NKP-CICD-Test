@@ -1,11 +1,12 @@
 # Build monitoring-backend and monitoring-frontend and push to Docker Hub on git push.
 #
-# Required GitHub secrets:
-#   DOCKERHUB_USERNAME - your Docker Hub username (e.g. prajwalnutant)
-#   DOCKERHUB_TOKEN    - Docker Hub access token (Settings → Security → Access Tokens)
+# Required GitHub repo secrets (Settings → Secrets and variables → Actions):
+#   DOCKERHUB_USERNAME - your Docker Hub username (lowercase, no spaces)
+#   DOCKERHUB_TOKEN    - Docker Hub ACCESS TOKEN only (NOT your account password!)
+#                        Create at https://hub.docker.com/settings/security → New Access Token
+#                        Permissions: Read, Write, Delete. Use the token as DOCKERHUB_TOKEN.
 #
-# Optional: set default in repo Variables (Settings → Secrets and variables → Actions → Variables)
-#   DOCKERHUB_USERNAME - if not set, add it as a secret or variable.
+# "unauthorized: incorrect username or password" → use a token, not your login password.
 
 name: Build and push Docker images
 

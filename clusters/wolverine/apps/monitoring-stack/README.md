@@ -8,10 +8,17 @@ On every **git push to `main`** (when `monitoring-backend/`, `monitoring-fronten
 
 **One-time setup in your GitHub repo:**
 
-1. **Settings → Secrets and variables → Actions**
-2. Add **Repository secrets**:
-   - `DOCKERHUB_USERNAME` – your Docker Hub username (e.g. `prajwalnutant`)
-   - `DOCKERHUB_TOKEN` – a Docker Hub [Access Token](https://hub.docker.com/settings/security) (create with “Read, Write, Delete” for repos)
+1. **Create a Docker Hub Access Token** (do **not** use your account password):
+   - Go to [Docker Hub → Account Settings → Security → Access Tokens](https://hub.docker.com/settings/security)
+   - Click **New Access Token**
+   - Name it (e.g. `github-actions`), set permissions to **Read, Write, Delete**
+   - Create and **copy the token** (you won’t see it again)
+
+2. **GitHub repo → Settings → Secrets and variables → Actions**
+   - Add **Repository secret** `DOCKERHUB_USERNAME`: your Docker Hub username (e.g. `prajwalnutant`), lowercase, no spaces
+   - Add **Repository secret** `DOCKERHUB_TOKEN`: paste the **Access Token** you just created (not your login password)
+
+**If you see “unauthorized: incorrect username or password”:** Docker Hub no longer accepts account passwords for API login. You must use an Access Token as `DOCKERHUB_TOKEN`. Create one at the link above and update the secret.
 
 Workflow file: [`.github/workflows/docker-build-push.yml`](../../../../.github/workflows/docker-build-push.yml).  
 Images are tagged as `DOCKERHUB_USERNAME/monitoring-backend:latest` and `…/monitoring-frontend:latest`, plus a short git SHA tag (e.g. `…:abc1234`). After a successful run, point your cluster at `docker.io/DOCKERHUB_USERNAME/monitoring-backend:latest` (and frontend) and redeploy.
