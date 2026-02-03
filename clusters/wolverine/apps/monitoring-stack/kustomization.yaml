@@ -6,3 +6,10 @@ resources:
 - backend.yaml
 - frontend.yaml
 - ingress.yaml
+# Override images when using a registry (fixes ImagePullBackOff on remote clusters):
+#   cd clusters/wolverine/apps/monitoring-stack
+#   kustomize edit set image monitoring-backend:latest=ghcr.io/YOUR_USER/monitoring-backend:latest
+#   kustomize edit set image monitoring-frontend:latest=ghcr.io/YOUR_USER/monitoring-frontend:latest
+images:
+- name: monitoring-backend:latest
+- name: monitoring-frontend:latest

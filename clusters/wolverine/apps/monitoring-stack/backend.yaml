@@ -16,7 +16,8 @@ spec:
       serviceAccountName: monitoring-sa
       containers:
       - name: backend
-        image: monitoring-backend:latest   # build from repo root: docker build -t monitoring-backend:latest ./monitoring-backend
+        image: monitoring-backend:latest   # override with registry: kustomize edit set image monitoring-backend:latest=YOUR_REGISTRY/monitoring-backend:latest
+        imagePullPolicy: IfNotPresent     # use Never for kind/minikube after loading image
         ports:
         - containerPort: 8080
         env:
