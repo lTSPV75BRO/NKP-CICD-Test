@@ -5,3 +5,4 @@ resources:
 - rbac.yaml
 - backend.yaml
 - frontend.yaml
+- ingress.yaml

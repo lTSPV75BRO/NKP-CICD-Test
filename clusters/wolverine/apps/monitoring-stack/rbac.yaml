@@ -10,10 +10,20 @@ metadata:
   name: monitoring-viewer
 rules:
 - apiGroups: [""]
-  resources: ["pods","services"]
+  resources: ["pods","services","nodes"]
   verbs: ["get","list"]
 - apiGroups: ["apps"]
   resources: ["deployments"]
+  verbs: ["get","list"]
+# Flux CD (optional; no error if CRDs not installed)
+- apiGroups: ["kustomize.toolkit.fluxcd.io"]
+  resources: ["kustomizations"]
+  verbs: ["get","list"]
+- apiGroups: ["helm.toolkit.fluxcd.io"]
+  resources: ["helmreleases"]
+  verbs: ["get","list"]
+- apiGroups: ["source.toolkit.fluxcd.io"]
+  resources: ["gitrepositories"]
   verbs: ["get","list"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1

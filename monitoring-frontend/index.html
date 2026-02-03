@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NKP-CICD Cluster Monitoring</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0f0f14;
+      --surface: #18181f;
+      --border: #2a2a35;
+      --text: #e4e4eb;
+      --muted: #8b8b9a;
+      --accent: #7c6ef6;
+      --success: #22c55e;
+      --warning: #eab308;
+      --error: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, #a78bfa, #7c6ef6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .subtitle { color: var(--muted); font-size: 0.95rem; margin-bottom: 1.5rem; }
+    .header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .health-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0.8rem;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .health-badge.healthy { background: rgba(34, 197, 94, 0.2); color: var(--success); }
+    .health-badge.degraded { background: rgba(239, 68, 68, 0.2); color: var(--error); }
+    .health-badge.loading { background: var(--surface); color: var(--muted); }
+    .health-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .health-badge.healthy .dot { animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    button.refresh {
+      font-family: inherit;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    button.refresh:hover { background: var(--border); }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      overflow: hidden;
+    }
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .card .value { font-size: 1.75rem; font-weight: 700; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+    .card .meta { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    th, td { text-align: left; padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; }
+    tr:last-child td { border-bottom: none; }
+    .status-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      margin-right: 0.5rem;
+    }
+    .status-dot.ready, .status-dot.Healthy { background: var(--success); }
+    .status-dot.notready, .status-dot.NotReady { background: var(--error); }
+    .status-dot.pending { background: var(--warning); }
+    .status-dot.unknown { background: var(--muted); }
+    .error-msg { color: var(--error); font-size: 0.9rem; padding: 1rem; background: rgba(239,68,68,0.1); border-radius: 8px; margin-top: 0.5rem; }
+    .timestamp { font-size: 0.75rem; color: var(--muted); margin-top: 1rem; }
+    .loading { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header-row">
+      <div>
+        <h1>NKP-CICD Cluster Monitoring</h1>
+        <p class="subtitle">Nodes, pods, deployments, and Flux workloads</p>
+      </div>
+      <div style="display: flex; align-items: center; gap: 1rem;">
+        <div id="health-badge" class="health-badge loading"><span class="dot"></span> <span>Checking…</span></div>
+        <button class="refresh" type="button" onclick="loadAll()">Refresh</button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Nodes</h2>
+        <div id="nodes-value" class="value loading">—</div>
+        <div class="meta" id="nodes-meta">—</div>
+      </div>
+      <div class="card">
+        <h2>Pods</h2>
+        <div id="pods-value" class="value loading">—</div>
+        <div class="meta" id="pods-meta">—</div>
+      </div>
+      <div class="card">
+        <h2>Deployments</h2>
+        <div id="deployments-value" class="value loading">—</div>
+        <div class="meta" id="deployments-meta">—</div>
+      </div>
+      <div class="card">
+        <h2>Flux Kustomizations</h2>
+        <div id="flux-k-value" class="value loading">—</div>
+        <div class="meta" id="flux-k-meta">—</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom: 1rem;">
+      <h2>Nodes</h2>
+      <div id="nodes-table-wrap"><p class="loading">Loading…</p></div>
+    </div>
+    <div class="card" style="margin-bottom: 1rem;">
+      <h2>Pods (sample)</h2>
+      <div id="pods-table-wrap"><p class="loading">Loading…</p></div>
+    </div>
+    <div class="card" style="margin-bottom: 1rem;">
+      <h2>Deployments</h2>
+      <div id="deployments-table-wrap"><p class="loading">Loading…</p></div>
+    </div>
+    <div class="card" style="margin-bottom: 1rem;">
+      <h2>Flux Kustomizations</h2>
+      <div id="flux-k-table-wrap"><p class="loading">Loading…</p></div>
+    </div>
+    <div class="card" style="margin-bottom: 1rem;">
+      <h2>Flux GitRepositories</h2>
+      <div id="flux-git-table-wrap"><p class="loading">Loading…</p></div>
+    </div>
+
+    <p class="timestamp" id="page-timestamp">—</p>
+  </div>
+
+  <script>
+    // Same origin when behind Ingress (path /api -> backend). If using separate LoadBalancers, set e.g. window.API_BASE = 'http://backend-ip:8080' before load.
+    const API = window.API_BASE || '';
+
+    function setHealth(healthy) {
+      const el = document.getElementById('health-badge');
+      el.className = 'health-badge ' + (healthy === true ? 'healthy' : healthy === false ? 'degraded' : 'loading');
+      el.innerHTML = '<span class="dot"></span> <span>' + (healthy === true ? 'Healthy' : healthy === false ? 'Degraded' : 'Checking…') + '</span>';
+    }
+
+    function renderNodes(data) {
+      const wrap = document.getElementById('nodes-table-wrap');
+      if (data.error) {
+        wrap.innerHTML = '<p class="error-msg">' + escapeHtml(data.error) + '</p>';
+        return;
+      }
+      const nodes = data.nodes || [];
+      document.getElementById('nodes-value').textContent = nodes.length;
+      document.getElementById('nodes-value').className = 'value';
+      const ready = nodes.filter(n => n.status === 'Ready').length;
+      document.getElementById('nodes-meta').textContent = ready + ' ready';
+      if (nodes.length === 0) {
+        wrap.innerHTML = '<p class="muted">No nodes</p>';
+        return;
+      }
+      wrap.innerHTML = '<table><thead><tr><th>Name</th><th>Status</th><th>Roles</th></tr></thead><tbody>' +
+        nodes.map(n => '<tr><td><span class="status-dot ' + (n.status === 'Ready' ? 'ready' : 'notready') + '"></span>' + escapeHtml(n.name) + '</td><td>' + escapeHtml(n.status) + '</td><td>' + escapeHtml(String(n.roles)) + '</td></tr>').join('') +
+        '</tbody></table>';
+    }
+
+    function renderPods(data) {
+      const wrap = document.getElementById('pods-table-wrap');
+      if (data.error) {
+        wrap.innerHTML = '<p class="error-msg">' + escapeHtml(data.error) + '</p>';
+        return;
+      }
+      const pods = data.pods || [];
+      document.getElementById('pods-value').textContent = pods.length;
+      document.getElementById('pods-value').className = 'value';
+      document.getElementById('pods-meta').textContent = 'Total pods';
+      const sample = pods.slice(0, 50);
+      if (sample.length === 0) {
+        wrap.innerHTML = '<p class="muted">No pods</p>';
+        return;
+      }
+      wrap.innerHTML = '<table><thead><tr><th>Name</th><th>Namespace</th><th>Phase</th><th>Ready</th><th>Node</th></tr></thead><tbody>' +
+        sample.map(p => '<tr><td>' + escapeHtml(p.name) + '</td><td>' + escapeHtml(p.namespace) + '</td><td>' + escapeHtml(p.phase) + '</td><td>' + escapeHtml(p.ready) + '</td><td>' + escapeHtml(p.node || '—') + '</td></tr>').join('') +
+        '</tbody></table>' + (pods.length > 50 ? '<p class="meta">Showing first 50 of ' + pods.length + '</p>' : '');
+    }
+
+    function renderDeployments(data) {
+      const wrap = document.getElementById('deployments-table-wrap');
+      if (data.error) {
+        wrap.innerHTML = '<p class="error-msg">' + escapeHtml(data.error) + '</p>';
+        return;
+      }
+      const deployments = data.deployments || [];
+      document.getElementById('deployments-value').textContent = deployments.length;
+      document.getElementById('deployments-value').className = 'value';
+      const allReady = deployments.filter(d => d.ready === d.desired).length;
+      document.getElementById('deployments-meta').textContent = allReady + '/' + deployments.length + ' ready';
+      if (deployments.length === 0) {
+        wrap.innerHTML = '<p class="muted">No deployments</p>';
+        return;
+      }
+      wrap.innerHTML = '<table><thead><tr><th>Name</th><th>Namespace</th><th>Ready</th><th>Desired</th></tr></thead><tbody>' +
+        deployments.map(d => '<tr><td>' + escapeHtml(d.name) + '</td><td>' + escapeHtml(d.namespace) + '</td><td>' + d.ready + '</td><td>' + d.desired + '</td></tr>').join('') +
+        '</tbody></table>';
+    }
+
+    function renderFluxK(data) {
+      const wrap = document.getElementById('flux-k-table-wrap');
+      const kustomizations = data.kustomizations || [];
+      document.getElementById('flux-k-value').textContent = data.error ? '—' : kustomizations.length;
+      document.getElementById('flux-k-value').className = 'value';
+      document.getElementById('flux-k-meta').textContent = data.error || (kustomizations.length + ' Kustomizations');
+      if (data.error) {
+        wrap.innerHTML = '<p class="muted">' + escapeHtml(data.error) + ' (Flux may not be installed)</p>';
+        return;
+      }
+      if (kustomizations.length === 0) {
+        wrap.innerHTML = '<p class="muted">No Kustomizations</p>';
+        return;
+      }
+      wrap.innerHTML = '<table><thead><tr><th>Name</th><th>Namespace</th><th>Ready</th><th>Revision</th><th>Message</th></tr></thead><tbody>' +
+        kustomizations.map(k => '<tr><td>' + escapeHtml(k.name) + '</td><td>' + escapeHtml(k.namespace) + '</td><td><span class="status-dot ' + (k.ready ? 'ready' : 'notready') + '"></span>' + (k.ready ? 'Yes' : 'No') + '</td><td>' + escapeHtml(k.lastAppliedRevision || '—') + '</td><td>' + escapeHtml(k.message || '') + '</td></tr>').join('') +
+        '</tbody></table>';
+    }
+
+    function renderFluxGit(data) {
+      const wrap = document.getElementById('flux-git-table-wrap');
+      const repos = data.gitrepositories || [];
+      if (data.error) {
+        wrap.innerHTML = '<p class="muted">' + escapeHtml(data.error) + '</p>';
+        return;
+      }
+      if (repos.length === 0) {
+        wrap.innerHTML = '<p class="muted">No GitRepositories</p>';
+        return;
+      }
+      wrap.innerHTML = '<table><thead><tr><th>Name</th><th>Namespace</th><th>Ready</th><th>URL</th><th>Revision</th></tr></thead><tbody>' +
+        repos.map(r => '<tr><td>' + escapeHtml(r.name) + '</td><td>' + escapeHtml(r.namespace) + '</td><td><span class="status-dot ' + (r.ready ? 'ready' : 'notready') + '"></span>' + (r.ready ? 'Yes' : 'No') + '</td><td>' + escapeHtml(r.url || '—') + '</td><td>' + escapeHtml(r.revision || '—') + '</td></tr>').join('') +
+        '</tbody></table>';
+    }
+
+    function escapeHtml(s) {
+      if (s == null) return '';
+      const div = document.createElement('div');
+      div.textContent = s;
+      return div.innerHTML;
+    }
+
+    async function fetchApi(path) {
+      const base = API || '';
+      const url = (base.endsWith('/') ? base.slice(0, -1) : base) + '/api' + (path.startsWith('/') ? path : '/' + path);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+      return res.json();
+    }
+
+    async function loadAll() {
+      setHealth(null);
+      document.getElementById('page-timestamp').textContent = 'Loading…';
+
+      try {
+        const [health, nodes, pods, deployments, fluxK, fluxGit] = await Promise.all([
+          fetchApi('/health'),
+          fetchApi('/nodes'),
+          fetchApi('/pods'),
+          fetchApi('/deployments'),
+          fetchApi('/flux/kustomizations'),
+          fetchApi('/flux/gitrepositories'),
+        ]);
+
+        setHealth(health.status === 'healthy');
+        document.getElementById('page-timestamp').textContent = 'Last updated: ' + (health.timestamp || new Date().toISOString());
+
+        renderNodes(nodes);
+        renderPods(pods);
+        renderDeployments(deployments);
+        renderFluxK(fluxK);
+        renderFluxGit(fluxGit);
+      } catch (err) {
+        setHealth(false);
+        document.getElementById('page-timestamp').textContent = 'Error: ' + err.message;
+        document.getElementById('nodes-table-wrap').innerHTML = '<p class="error-msg">Failed to reach API. Is the backend running? Use Ingress so frontend and API are same-origin, or enable CORS.</p>';
+        document.getElementById('pods-table-wrap').innerHTML = '';
+        document.getElementById('deployments-table-wrap').innerHTML = '';
+        document.getElementById('flux-k-table-wrap').innerHTML = '';
+        document.getElementById('flux-git-table-wrap').innerHTML = '';
+        document.getElementById('nodes-value').textContent = '—';
+        document.getElementById('pods-value').textContent = '—';
+        document.getElementById('deployments-value').textContent = '—';
+        document.getElementById('flux-k-value').textContent = '—';
+      }
+    }
+
+    loadAll();
+    setInterval(loadAll, 30000);
+  </script>
+</body>
+</html>

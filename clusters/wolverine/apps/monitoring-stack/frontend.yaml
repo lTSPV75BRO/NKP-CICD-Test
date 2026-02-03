@@ -15,11 +15,16 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: nginx:alpine
+        image: monitoring-frontend:latest   # build: docker build -t monitoring-frontend:latest ./monitoring-frontend
         ports:
         - containerPort: 80
-        command: ["/bin/sh"]
-        args: ["echo '<!DOCTYPE html><html><head><title>NKP-CICD Monitoring</title><style>body{font-family:Arial;background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:50px;text-align:center;}</style></head><body><h1>🚀 NKP-CICD Monitoring Stack</h1><div style=\"background:rgba(0,0,0,0.3);padding:30px;border-radius:20px;margin:20px;font-family:monospace;\"><h2>✅ Status</h2><p><strong>Flux:</strong> All Kustomizations READY</p><p><strong>Git:</strong> main@sha1:2daeb330</p><p><strong>Backend:</strong> 10.48.104.93:8080 ✓</p><p><strong>Frontend:</strong> 10.48.104.94:80 ✓</p><p><strong>Strimzi Kafka:</strong> Operator Running</p><p style=\"font-size:0.9em;color:#aaa;\">Updated: $(date)</p></div></body></html>' > /usr/share/nginx/html/index.html && nginx -g 'daemon off;'"]
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "20m"
+          limits:
+            memory: "64Mi"
+            cpu: "100m"
 ---
 apiVersion: v1
 kind: Service
