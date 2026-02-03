@@ -95,6 +95,17 @@ def list_nodes():
         return {"error": e.reason or str(e), "nodes": [], "count": 0, "timestamp": _now_iso()}
 
 
+@app.get("/api/namespaces")
+def list_namespaces():
+    """List cluster namespaces (for frontend filter)."""
+    try:
+        ret = v1_core.list_namespace()
+        names = [i.metadata.name for i in ret.items]
+        return {"namespaces": sorted(names), "count": len(names), "timestamp": _now_iso()}
+    except ApiException as e:
+        return {"error": e.reason or str(e), "namespaces": [], "count": 0, "timestamp": _now_iso()}
+
+
 @app.get("/api/pods")
 def list_pods(namespace: str | None = None):
     """List pods across the cluster or in a namespace."""

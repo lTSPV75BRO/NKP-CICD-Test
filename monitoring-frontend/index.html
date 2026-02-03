@@ -72,6 +72,24 @@
       font-size: 0.9rem;
     }
     button.refresh:hover { background: var(--border); }
+    .namespace-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+    }
+    .namespace-row label { color: var(--muted); font-size: 0.9rem; }
+    .namespace-row select {
+      font-family: inherit;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.4rem 0.75rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      min-width: 180px;
+    }
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -129,6 +147,13 @@
         <div id="health-badge" class="health-badge loading"><span class="dot"></span> <span>Checking…</span></div>
         <button class="refresh" type="button" onclick="loadAll()">Refresh</button>
       </div>
+    </div>
+
+    <div class="namespace-row">
+      <label for="namespace-select">Namespace (pods &amp; deployments):</label>
+      <select id="namespace-select" onchange="loadAll()">
+        <option value="">All namespaces</option>
+      </select>
     </div>
 
     <div class="grid">
@@ -217,7 +242,8 @@
       const pods = data.pods || [];
       document.getElementById('pods-value').textContent = pods.length;
       document.getElementById('pods-value').className = 'value';
-      document.getElementById('pods-meta').textContent = 'Total pods';
+      const nsSel = document.getElementById('namespace-select').value;
+      document.getElementById('pods-meta').textContent = nsSel ? 'Namespace: ' + nsSel : 'All namespaces';
       const sample = pods.slice(0, 50);
       if (sample.length === 0) {
         wrap.innerHTML = '<p class="muted">No pods</p>';
@@ -238,7 +264,8 @@
       document.getElementById('deployments-value').textContent = deployments.length;
       document.getElementById('deployments-value').className = 'value';
       const allReady = deployments.filter(d => d.ready === d.desired).length;
-      document.getElementById('deployments-meta').textContent = allReady + '/' + deployments.length + ' ready';
+      const nsSel2 = document.getElementById('namespace-select').value;
+      document.getElementById('deployments-meta').textContent = (nsSel2 ? 'Namespace: ' + nsSel2 + ' · ' : '') + allReady + '/' + deployments.length + ' ready';
       if (deployments.length === 0) {
         wrap.innerHTML = '<p class="muted">No deployments</p>';
         return;
@@ -290,9 +317,13 @@
       return div.innerHTML;
     }
 
-    async function fetchApi(path) {
+    async function fetchApi(path, params) {
       const base = API || '';
-      const url = (base.endsWith('/') ? base.slice(0, -1) : base) + '/api' + (path.startsWith('/') ? path : '/' + path);
+      let url = (base.endsWith('/') ? base.slice(0, -1) : base) + '/api' + (path.startsWith('/') ? path : '/' + path);
+      if (params && Object.keys(params).length) {
+        const q = new URLSearchParams(params).toString();
+        url += (url.includes('?') ? '&' : '?') + q;
+      }
       const res = await fetch(url);
       if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
       return res.json();
@@ -301,19 +332,33 @@
     async function loadAll() {
       setHealth(null);
       document.getElementById('page-timestamp').textContent = 'Loading…';
+      const ns = document.getElementById('namespace-select').value;
 
       try {
-        const [health, nodes, pods, deployments, fluxK, fluxGit] = await Promise.all([
+        const [health, nodes, namespaces, pods, deployments, fluxK, fluxGit] = await Promise.all([
           fetchApi('/health'),
           fetchApi('/nodes'),
-          fetchApi('/pods'),
-          fetchApi('/deployments'),
+          fetchApi('/namespaces'),
+          fetchApi('/pods', ns ? { namespace: ns } : {}),
+          fetchApi('/deployments', ns ? { namespace: ns } : {}),
           fetchApi('/flux/kustomizations'),
           fetchApi('/flux/gitrepositories'),
         ]);
 
         setHealth(health.status === 'healthy');
         document.getElementById('page-timestamp').textContent = 'Last updated: ' + (health.timestamp || new Date().toISOString());
+
+        // Populate namespace dropdown (keep current selection if still present)
+        const sel = document.getElementById('namespace-select');
+        const current = sel.value;
+        sel.innerHTML = '<option value="">All namespaces</option>';
+        (namespaces.namespaces || []).forEach(function(n) {
+          const opt = document.createElement('option');
+          opt.value = n;
+          opt.textContent = n;
+          if (n === current) opt.selected = true;
+          sel.appendChild(opt);
+        });
 
         renderNodes(nodes);
         renderPods(pods);
