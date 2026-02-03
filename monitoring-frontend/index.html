@@ -164,6 +164,7 @@
         <div id="health-badge" class="health-badge loading"><span class="dot"></span> <span>Checking…</span></div>
         <a href="/api/docs" target="_blank" rel="noopener" class="api-docs-link">API docs</a>
         <button class="refresh" type="button" onclick="loadAll()">Refresh</button>
+        <button class="refresh" type="button" onclick="copySummary()" title="Copy summary JSON to clipboard">Copy summary</button>
       </div>
     </div>
 
@@ -198,6 +199,11 @@
         <div id="services-value" class="value loading">—</div>
         <div class="meta" id="services-meta">—</div>
       </div>
+      <div class="card">
+        <h2>Ingresses</h2>
+        <div id="ingresses-value" class="value loading">—</div>
+        <div class="meta" id="ingresses-meta">—</div>
+      </div>
     </div>
 
     <div class="card" style="margin-bottom: 1rem;">
@@ -211,6 +217,10 @@
     <div class="card" style="margin-bottom: 1rem;">
       <h2>Services</h2>
       <div id="services-table-wrap"><p class="loading">Loading…</p></div>
+    </div>
+    <div class="card" style="margin-bottom: 1rem;">
+      <h2>Ingresses</h2>
+      <div id="ingresses-table-wrap"><p class="loading">Loading…</p></div>
     </div>
     <div class="card" style="margin-bottom: 1rem;">
       <h2>Deployments</h2>
@@ -346,6 +356,26 @@
         '</tbody></table>';
     }
 
+    function renderIngresses(data) {
+      const wrap = document.getElementById('ingresses-table-wrap');
+      if (data.error) {
+        wrap.innerHTML = '<p class="error-msg">' + escapeHtml(data.error) + '</p>';
+        return;
+      }
+      const ingresses = data.ingresses || [];
+      document.getElementById('ingresses-value').textContent = ingresses.length;
+      document.getElementById('ingresses-value').className = 'value';
+      const nsSel = document.getElementById('namespace-select').value;
+      document.getElementById('ingresses-meta').textContent = nsSel ? 'Namespace: ' + nsSel : 'All namespaces';
+      if (ingresses.length === 0) {
+        wrap.innerHTML = '<p class="muted">No ingresses</p>';
+        return;
+      }
+      wrap.innerHTML = '<table><thead><tr><th>Name</th><th>Namespace</th><th>Hosts</th><th>Ingress Class</th></tr></thead><tbody>' +
+        ingresses.map(i => '<tr><td>' + escapeHtml(i.name) + '</td><td>' + escapeHtml(i.namespace) + '</td><td>' + escapeHtml(i.hosts || '—') + '</td><td>' + escapeHtml(i.ingressClassName || '—') + '</td></tr>').join('') +
+        '</tbody></table>';
+    }
+
     function renderFluxHelm(data) {
       const wrap = document.getElementById('flux-helm-table-wrap');
       const releases = data.helmreleases || [];
@@ -407,6 +437,22 @@
       if (sec > 0) refreshIntervalId = setInterval(loadAll, sec * 1000);
     }
 
+    async function copySummary() {
+      try {
+        const data = await fetchApi('/workloads');
+        const json = JSON.stringify(data, null, 2);
+        await navigator.clipboard.writeText(json);
+        const btn = document.querySelector('button[onclick="copySummary()"]');
+        if (btn) {
+          const orig = btn.textContent;
+          btn.textContent = 'Copied!';
+          setTimeout(function() { btn.textContent = orig; }, 2000);
+        }
+      } catch (e) {
+        alert('Failed to copy: ' + (e.message || e));
+      }
+    }
+
     function escapeHtml(s) {
       if (s == null) return '';
       const div = document.createElement('div');
@@ -432,12 +478,13 @@
       const ns = document.getElementById('namespace-select').value;
 
       try {
-        const [health, nodes, namespaces, pods, services, deployments, fluxK, fluxHelm, fluxGit] = await Promise.all([
+        const [health, nodes, namespaces, pods, services, ingresses, deployments, fluxK, fluxHelm, fluxGit] = await Promise.all([
           fetchApi('/health'),
           fetchApi('/nodes'),
           fetchApi('/ns'),
           fetchApi('/pods', ns ? { namespace: ns } : {}),
           fetchApi('/svc', ns ? { namespace: ns } : {}),
+          fetchApi('/ingresses', ns ? { namespace: ns } : {}),
           fetchApi('/deployments', ns ? { namespace: ns } : {}),
           fetchApi('/flux/kustomizations'),
           fetchApi('/flux/helmreleases'),
@@ -464,6 +511,7 @@
         renderNodes(nodes);
         renderPods(pods);
         renderServices(services);
+        renderIngresses(ingresses);
         renderDeployments(deployments);
         renderFluxK(fluxK);
         renderFluxHelm(fluxHelm);
@@ -475,6 +523,7 @@
         document.getElementById('pods-table-wrap').innerHTML = '';
         document.getElementById('deployments-table-wrap').innerHTML = '';
         document.getElementById('services-table-wrap').innerHTML = '';
+        document.getElementById('ingresses-table-wrap').innerHTML = '';
         document.getElementById('flux-k-table-wrap').innerHTML = '';
         document.getElementById('flux-helm-table-wrap').innerHTML = '';
         document.getElementById('flux-git-table-wrap').innerHTML = '';
@@ -482,6 +531,7 @@
         document.getElementById('pods-value').textContent = '—';
         document.getElementById('deployments-value').textContent = '—';
         document.getElementById('services-value').textContent = '—';
+        document.getElementById('ingresses-value').textContent = '—';
         document.getElementById('flux-k-value').textContent = '—';
         document.getElementById('flux-helm-value').textContent = '—';
       }

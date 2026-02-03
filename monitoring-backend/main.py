@@ -19,6 +19,7 @@ except config.ConfigException:
 
 v1_core = client.CoreV1Api()
 v1_apps = client.AppsV1Api()
+networking_v1 = client.NetworkingV1Api()
 custom_api = client.CustomObjectsApi()
 
 
@@ -183,6 +184,34 @@ def _list_services(namespace: str | None = None):
 def list_services(namespace: str | None = None):
     """List services (optional ?namespace=...)."""
     return _list_services(namespace)
+
+
+@app.get("/api/ingresses")
+@app.get("/api/ingresses/")
+def list_ingresses(namespace: str | None = None):
+    """List Ingresses (optional ?namespace=...)."""
+    try:
+        if namespace:
+            ret = networking_v1.list_namespaced_ingress(namespace=namespace)
+        else:
+            ret = networking_v1.list_ingress_for_all_namespaces()
+        ingresses = []
+        for i in ret.items:
+            hosts = []
+            if i.spec and i.spec.rules:
+                for r in i.spec.rules:
+                    if r.host:
+                        hosts.append(r.host)
+            ingress_class = (i.spec.ingress_class_name if i.spec else None) or "—"
+            ingresses.append({
+                "name": i.metadata.name,
+                "namespace": i.metadata.namespace,
+                "hosts": ",".join(hosts) if hosts else "—",
+                "ingressClassName": ingress_class,
+            })
+        return {"ingresses": ingresses, "count": len(ingresses), "timestamp": _now_iso()}
+    except ApiException as e:
+        return {"error": e.reason or str(e), "ingresses": [], "count": 0, "timestamp": _now_iso()}
 
 
 @app.get("/api/deployments")

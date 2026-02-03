@@ -121,6 +121,7 @@ Open the **frontend** URL (e.g. `http://<frontend-LoadBalancer-IP>/`). The front
 | `GET /api/nodes` | Nodes and status |
 | `GET /api/pods` | Pods (optional `?namespace=...`) |
 | `GET /api/services` | Services (optional `?namespace=...`) |
+| `GET /api/ingresses` | Ingresses (optional `?namespace=...`) |
 | `GET /api/deployments` | Deployments (optional `?namespace=...`) |
 | `GET /api/flux/kustomizations` | Flux Kustomizations |
 | `GET /api/flux/helmreleases` | Flux HelmReleases |

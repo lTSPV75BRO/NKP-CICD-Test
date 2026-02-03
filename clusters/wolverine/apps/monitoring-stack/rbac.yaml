@@ -15,6 +15,9 @@ rules:
 - apiGroups: ["apps"]
   resources: ["deployments"]
   verbs: ["get","list"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["get","list"]
 # Flux CD (optional; no error if CRDs not installed)
 - apiGroups: ["kustomize.toolkit.fluxcd.io"]
   resources: ["kustomizations"]
