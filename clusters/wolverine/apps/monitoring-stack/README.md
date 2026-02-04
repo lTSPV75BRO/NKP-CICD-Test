@@ -112,6 +112,25 @@ Open the **frontend** URL (e.g. `http://<frontend-LoadBalancer-IP>/`). The front
    kubectl rollout restart deployment/monitoring-frontend -n apps
    ```
 
+## Logs to Kafka
+
+Backend and frontend can send logs to Kafka (Strimzi in the `kafka` namespace).
+
+**Infrastructure (apply before or with Flux):**
+
+- **Kafka cluster + topic:** Under `clusters/wolverine/infrastructure/kafka/`:
+  - `kafka-cluster.yaml` – Strimzi Kafka (1 broker, ephemeral); bootstrap: `cluster-kafka-bootstrap.kafka.svc.cluster.local:9092`
+  - `kafka-topic-logs.yaml` – Topic `monitoring-logs` (3 partitions)
+- Apply infrastructure (including Strimzi operator) so the cluster and topic exist.
+
+**Backend:**  
+When `KAFKA_BOOTSTRAP_SERVERS` is set (e.g. in `backend.yaml`), the app sends log records (JSON) to the topic `monitoring-logs` (or `KAFKA_LOG_TOPIC`). Each message includes `source: monitoring-backend`, level, message, timestamp, logger name.
+
+**Frontend:**  
+A **Fluent Bit** sidecar in the frontend pod tails nginx `access.log` and `error.log` (shared volume) and streams them to the same topic with `source: monitoring-frontend`. Config: ConfigMap `fluent-bit-frontend-config`.
+
+To disable backend Kafka logging, remove or unset the `KAFKA_BOOTSTRAP_SERVERS` env from the backend deployment. To remove the frontend sidecar, delete the `fluent-bit` container and the `fluent-bit-config` / `nginx-logs` volumes from the frontend deployment and remove `fluent-bit-frontend-config.yaml` from the kustomization.
+
 ## Backend API (same host under `/api`)
 
 | Endpoint | Description |

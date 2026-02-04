@@ -1,0 +1,11 @@
+# Topic for monitoring backend/frontend logs (Strimzi Topic Operator creates it when cluster is ready)
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: monitoring-logs
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: cluster
+spec:
+  partitions: 3
+  replicas: 1

@@ -1,11 +1,12 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-- namespace.yaml
-- rbac.yaml
-- backend.yaml
-- frontend.yaml
-- ingress.yaml
+  - namespace.yaml
+  - rbac.yaml
+  - backend.yaml
+  - frontend.yaml
+  - fluent-bit-frontend-config.yaml
+  - ingress.yaml
 # Override images when using a registry (fixes ImagePullBackOff on remote clusters):
 #   cd clusters/wolverine/apps/monitoring-stack
 #   kustomize edit set image monitoring-backend:latest=ghcr.io/YOUR_USER/monitoring-backend:latest

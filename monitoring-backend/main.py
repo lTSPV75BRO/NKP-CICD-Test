@@ -1,8 +1,13 @@
 """
 Monitoring Backend - Polls Kubernetes API for nodes, pods, Flux workloads, and health.
 Runs in-cluster using the monitoring ServiceAccount.
+Optionally sends logs to Kafka when KAFKA_BOOTSTRAP_SERVERS is set.
 """
+import json
+import logging
 import os
+import queue
+import threading
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
@@ -23,13 +28,73 @@ networking_v1 = client.NetworkingV1Api()
 custom_api = client.CustomObjectsApi()
 
 
+def _setup_kafka_logging():
+    """If KAFKA_BOOTSTRAP_SERVERS is set, add a handler that sends log records to Kafka."""
+    bootstrap = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "").strip()
+    topic = os.environ.get("KAFKA_LOG_TOPIC", "monitoring-logs").strip() or "monitoring-logs"
+    if not bootstrap:
+        return
+    try:
+        from kafka import KafkaProducer
+        from kafka.errors import KafkaError
+
+        log_queue = queue.Queue()
+        producer = KafkaProducer(
+            bootstrap_servers=bootstrap.split(","),
+            value_serializer=lambda v: json.dumps(v).encode("utf-8"),
+            request_timeout_ms=5000,
+            retries=0,
+        )
+
+        def send_worker():
+            while True:
+                try:
+                    msg = log_queue.get()
+                    if msg is None:
+                        break
+                    producer.send(topic, value=msg)
+                except Exception:
+                    pass
+                finally:
+                    try:
+                        log_queue.task_done()
+                    except Exception:
+                        pass
+
+        thread = threading.Thread(target=send_worker, daemon=True)
+        thread.start()
+
+        class KafkaHandler(logging.Handler):
+            def emit(self, record):
+                try:
+                    log_queue.put_nowait({
+                        "source": "monitoring-backend",
+                        "level": record.levelname,
+                        "message": self.format(record),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "logger": record.name,
+                    })
+                except Exception:
+                    pass
+
+        handler = KafkaHandler()
+        handler.setFormatter(logging.Formatter("%(name)s - %(levelname)s - %(message)s"))
+        logging.getLogger().addHandler(handler)
+    except Exception as e:
+        logging.warning("Kafka logging not enabled: %s", e)
+
+
+_setup_kafka_logging()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: verify we can talk to the API
     try:
         v1_core.list_namespace(limit=1)
+        logging.info("Monitoring backend started; Kubernetes API reachable")
     except ApiException as e:
-        print(f"Kubernetes API check failed: {e}")
+        logging.warning("Kubernetes API check failed: %s", e)
     yield
     # Shutdown
     pass

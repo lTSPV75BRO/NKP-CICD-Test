@@ -23,6 +23,11 @@ spec:
         env:
         - name: PORT
           value: "8080"
+        # Optional: send app logs to Kafka (Strimzi bootstrap in kafka namespace)
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: "cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+        - name: KAFKA_LOG_TOPIC
+          value: "monitoring-logs"
         resources:
           requests:
             memory: "64Mi"

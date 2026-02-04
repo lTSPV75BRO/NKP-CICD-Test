@@ -13,12 +13,38 @@ spec:
       labels:
         app: monitoring-frontend
     spec:
+      volumes:
+      - name: nginx-logs
+        emptyDir: {}
+      - name: fluent-bit-config
+        configMap:
+          name: fluent-bit-frontend-config
       containers:
       - name: frontend
         image: monitoring-frontend:latest   # override: kustomize edit set image monitoring-frontend:latest=YOUR_REGISTRY/monitoring-frontend:latest
         imagePullPolicy: Always   # always pull so new builds (namespace selector, etc.) are served
         ports:
         - containerPort: 80
+        volumeMounts:
+        - name: nginx-logs
+          mountPath: /var/log/nginx
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "20m"
+          limits:
+            memory: "64Mi"
+            cpu: "100m"
+      - name: fluent-bit
+        image: fluent/fluent-bit:2.2
+        args: ["/fluent-bit/bin/fluent-bit", "-c", "/fluent-bit/etc/fluent-bit.conf"]
+        volumeMounts:
+        - name: nginx-logs
+          mountPath: /var/log/nginx
+          readOnly: true
+        - name: fluent-bit-config
+          mountPath: /fluent-bit/etc/fluent-bit.conf
+          subPath: fluent-bit.conf
         resources:
           requests:
             memory: "32Mi"
