@@ -1,11 +1,22 @@
-# Fluent Bit config for monitoring-frontend sidecar: tail nginx logs → Kafka
+# Fluent Bit config for monitoring-frontend sidecar: tail nginx logs → Kafka (optional) or stdout
+# Set env KAFKA_BOOTSTRAP_SERVERS on the fluent-bit container to enable Kafka; otherwise logs go to stdout.
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: fluent-bit-frontend-config
   namespace: apps
 data:
-  fluent-bit.conf: |
+  entrypoint.sh: |
+    #!/bin/sh
+    set -e
+    if [ -n "$KAFKA_BOOTSTRAP_SERVERS" ]; then
+      sed "s|__KAFKA_BROKERS__|$KAFKA_BOOTSTRAP_SERVERS|g" /config/fluent-bit-kafka.conf > /fluent-bit/etc/fluent-bit.conf
+    else
+      cp /config/fluent-bit-stdout.conf /fluent-bit/etc/fluent-bit.conf
+    fi
+    exec /fluent-bit/bin/fluent-bit -c /fluent-bit/etc/fluent-bit.conf
+
+  fluent-bit-kafka.conf: |
     [SERVICE]
         Flush         1
         Log_Level     info
@@ -13,19 +24,53 @@ data:
     [INPUT]
         Name          tail
         Path          /var/log/nginx/access.log
+        Read_from_Head true
+        Tag           nginx.access
+        Refresh_Interval 5
+
+    [INPUT]
+        Name          tail
         Path          /var/log/nginx/error.log
         Read_from_Head true
-        Tag           nginx
+        Tag           nginx.error
         Refresh_Interval 5
 
     [FILTER]
         Name          modify
-        Match         *
+        Match         nginx.*
         Add           source monitoring-frontend
 
     [OUTPUT]
         Name          kafka
-        Match         *
-        Brokers       cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
+        Match         nginx.*
+        Brokers       __KAFKA_BROKERS__
         Topics        monitoring-logs
         Format        json_stream
+
+  fluent-bit-stdout.conf: |
+    [SERVICE]
+        Flush         1
+        Log_Level     info
+
+    [INPUT]
+        Name          tail
+        Path          /var/log/nginx/access.log
+        Read_from_Head true
+        Tag           nginx.access
+        Refresh_Interval 5
+
+    [INPUT]
+        Name          tail
+        Path          /var/log/nginx/error.log
+        Read_from_Head true
+        Tag           nginx.error
+        Refresh_Interval 5
+
+    [FILTER]
+        Name          modify
+        Match         nginx.*
+        Add           source monitoring-frontend
+
+    [OUTPUT]
+        Name          stdout
+        Match         nginx.*
