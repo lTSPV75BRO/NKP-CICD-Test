@@ -127,7 +127,55 @@ Backend and frontend can send logs to Kafka (Strimzi in the `kafka` namespace).
 When `KAFKA_BOOTSTRAP_SERVERS` is set (e.g. in `backend.yaml`), the app sends log records (JSON) to the topic `monitoring-logs` (or `KAFKA_LOG_TOPIC`). Each message includes `source: monitoring-backend`, level, message, timestamp, logger name.
 
 **Frontend:**  
-A **Fluent Bit** sidecar in the frontend pod tails nginx `access.log` and `error.log` (shared volume) and streams them to the same topic with `source: monitoring-frontend`. Config: ConfigMap `fluent-bit-frontend-config`.
+A **Fluent Bit** sidecar in the frontend pod tails nginx `access.log` and `error.log` (shared volume). By default it outputs to **stdout**. To ship to Kafka instead:
+
+1. Ensure Kafka is deployed and the topic `monitoring-logs` exists.
+2. Apply the Kafka Fluent Bit config (same ConfigMap name, replaces the default):
+   ```bash
+   kubectl apply -f clusters/wolverine/apps/monitoring-stack/fluent-bit-frontend-config-kafka.yaml
+   ```
+3. Restart the frontend so pods pick up the new config:
+   ```bash
+   kubectl rollout restart deployment monitoring-frontend -n apps
+   ```
+
+To switch back to stdout-only, re-apply the default config and restart:
+   ```bash
+   kubectl apply -f clusters/wolverine/apps/monitoring-stack/fluent-bit-frontend-config.yaml
+   kubectl rollout restart deployment monitoring-frontend -n apps
+   ```
+
+**See logs in Kafka (console consumer):**
+
+First ensure Kafka is running and the bootstrap service exists:
+
+```bash
+kubectl get pods -n kafka
+kubectl get svc -n kafka
+```
+
+You should see pods for the Kafka cluster and a service `cluster-kafka-bootstrap`. If not, deploy the infrastructure first (Strimzi operator + Kafka cluster + topic), e.g.:
+
+```bash
+kubectl apply -k clusters/wolverine/infrastructure/
+```
+
+Then run a one-off consumer pod. Use the **full DNS name** for the bootstrap server so it resolves from inside the pod:
+
+```bash
+# Consume from beginning; exit with Ctrl+C
+kubectl run kafka-consumer --rm -it --restart=Never \
+  --image=quay.io/strimzi/kafka:0.40.0-kafka-3.7.0 \
+  --namespace=kafka \
+  -- bin/kafka-console-consumer.sh \
+  --bootstrap-server cluster-kafka-bootstrap.kafka.svc.cluster.local:9092 \
+  --topic monitoring-logs \
+  --from-beginning
+```
+
+To use the same Kafka image as your broker (optional):  
+`kubectl get pods -n kafka -l strimzi.io/cluster=cluster -o jsonpath='{.items[0].spec.containers[0].image}'`  
+Then replace `--image=...` in the command above with that image.
 
 To disable backend Kafka logging, remove or unset the `KAFKA_BOOTSTRAP_SERVERS` env from the backend deployment. To remove the frontend sidecar, delete the `fluent-bit` container and the `fluent-bit-config` / `nginx-logs` volumes from the frontend deployment and remove `fluent-bit-frontend-config.yaml` from the kustomization.
 
