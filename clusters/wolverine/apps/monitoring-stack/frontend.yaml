@@ -19,8 +19,6 @@ spec:
       - name: fluent-bit-config
         configMap:
           name: fluent-bit-frontend-config
-      - name: fluent-bit-etc
-        emptyDir: {}
       containers:
       - name: frontend
         image: monitoring-frontend:latest   # override: kustomize edit set image monitoring-frontend:latest=YOUR_REGISTRY/monitoring-frontend:latest
@@ -39,17 +37,14 @@ spec:
             cpu: "100m"
       - name: fluent-bit
         image: fluent/fluent-bit:2.2
-        command: ["/bin/sh", "/config/entrypoint.sh"]
-        # Optional: set KAFKA_BOOTSTRAP_SERVERS (e.g. cluster-kafka-bootstrap.kafka.svc.cluster.local:9092) to ship logs to Kafka
+        args: ["/fluent-bit/bin/fluent-bit", "-c", "/fluent-bit/etc/fluent-bit.conf"]
         volumeMounts:
         - name: nginx-logs
           mountPath: /var/log/nginx
           readOnly: true
         - name: fluent-bit-config
-          mountPath: /config
-          readOnly: true
-        - name: fluent-bit-etc
-          mountPath: /fluent-bit/etc
+          mountPath: /fluent-bit/etc/fluent-bit.conf
+          subPath: fluent-bit.conf
         resources:
           requests:
             memory: "32Mi"
