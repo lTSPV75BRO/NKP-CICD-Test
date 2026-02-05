@@ -139,188 +139,312 @@
     .error-msg { color: var(--error); font-size: 0.9rem; padding: 1rem; background: rgba(239,68,68,0.1); border-radius: 8px; margin-top: 0.5rem; }
     .timestamp { font-size: 0.75rem; color: var(--muted); margin-top: 1rem; }
     .loading { color: var(--muted); }
+    .muted { color: var(--muted); font-size: 0.9rem; }
+
+    /* Sticky header */
+    .header-sticky {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--bg);
+      padding: 1rem 0;
+      margin: -1rem 0 1rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .header-sticky .header-row { margin-bottom: 0.75rem; }
+    .last-updated-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .last-updated-row .refresh-now { margin-left: auto; }
+
+    /* Quick-jump nav */
+    .nav-jump {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+    .nav-jump a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.8rem;
+      padding: 0.35rem 0.65rem;
+      border-radius: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+    .nav-jump a:hover { color: var(--accent); background: var(--border); }
+
+    /* Section grouping */
+    .section-head {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin: 1.5rem 0 0.5rem 0;
+      padding-bottom: 0.25rem;
+      letter-spacing: 0.03em;
+    }
+    .section-head:first-of-type { margin-top: 0.5rem; }
+
+    /* Collapsible table sections */
+    details.section-card {
+      margin-bottom: 0.5rem;
+    }
+    details.section-card .card { margin-bottom: 0; border-radius: 0 0 12px 12px; }
+    details.section-card[open] .card { border-radius: 12px; }
+    details.section-card > summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 0.85rem 1.25rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--muted);
+      user-select: none;
+    }
+    details.section-card > summary::-webkit-details-marker { display: none; }
+    details.section-card > summary::after {
+      content: '▼';
+      float: right;
+      font-size: 0.7rem;
+      color: var(--muted);
+      transition: transform 0.2s;
+    }
+    details.section-card[open] > summary::after { transform: rotate(-180deg); }
+    details.section-card > summary:hover { background: var(--border); color: var(--text); }
+    details.section-card[open] > summary { border-radius: 12px 12px 0 0; border-bottom-color: transparent; }
+    details.section-card .card { border-top: none; border-radius: 0 0 12px 12px; }
+
+    /* Scrollable table wrapper */
+    .table-wrap { overflow-x: auto; max-height: 400px; overflow-y: auto; }
+    .table-wrap table { min-width: 600px; }
+    .table-wrap thead th { position: sticky; top: 0; background: var(--surface); z-index: 1; }
+
+    /* Compact summary cards */
+    .grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.75rem; }
+    .card.summary-card { padding: 0.85rem 1rem; }
+    .card.summary-card h2 { font-size: 0.8rem; margin-bottom: 0.4rem; }
+    .card.summary-card .value { font-size: 1.4rem; }
+    .card.summary-card .meta { font-size: 0.72rem; }
+
+    /* Button focus */
+    button.refresh:focus-visible, .nav-jump a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    #namespace-select:focus, #interval-select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+    /* Refreshing indicator */
+    .refreshing .refresh-now { color: var(--accent); }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="header-row">
-      <div>
-        <h1>NKP-CICD Cluster Monitoring</h1>
-        <p class="subtitle">Nodes, pods, deployments, and Flux workloads</p>
+    <header class="header-sticky">
+      <div class="header-row">
+        <div>
+          <h1>NKP-CICD Cluster Monitoring</h1>
+          <p class="subtitle">Cluster resources and Flux workloads</p>
+        </div>
+        <div class="header-controls">
+          <label for="namespace-select" class="namespace-label">Namespace</label>
+          <select id="namespace-select" onchange="loadAll()">
+            <option value="">All namespaces</option>
+          </select>
+          <div id="health-badge" class="health-badge loading"><span class="dot"></span> <span>Checking…</span></div>
+          <label for="interval-select" class="namespace-label">Refresh</label>
+          <select id="interval-select" onchange="applyInterval()">
+            <option value="15">15s</option>
+            <option value="30" selected>30s</option>
+            <option value="60">60s</option>
+            <option value="0">Off</option>
+          </select>
+          <a href="/api/docs" target="_blank" rel="noopener" class="api-docs-link">API docs</a>
+          <button class="refresh" type="button" onclick="loadAll()">Refresh</button>
+          <button class="refresh" type="button" onclick="copySummary()" title="Copy summary JSON">Copy summary</button>
+        </div>
       </div>
-      <div class="header-controls">
-        <label for="namespace-select" class="namespace-label">Namespace:</label>
-        <select id="namespace-select" onchange="loadAll()">
-          <option value="">All namespaces</option>
-        </select>
-        <div id="health-badge" class="health-badge loading"><span class="dot"></span> <span>Checking…</span></div>
-        <label for="interval-select" class="namespace-label">Refresh:</label>
-        <select id="interval-select" onchange="applyInterval()">
-          <option value="15">15s</option>
-          <option value="30" selected>30s</option>
-          <option value="60">60s</option>
-          <option value="0">Off</option>
-        </select>
-        <a href="/api/docs" target="_blank" rel="noopener" class="api-docs-link">API docs</a>
-        <button class="refresh" type="button" onclick="loadAll()">Refresh</button>
-        <button class="refresh" type="button" onclick="copySummary()" title="Copy summary JSON to clipboard">Copy summary</button>
+      <div class="last-updated-row">
+        <span id="page-timestamp">—</span>
+        <span id="page-relative">—</span>
+        <span class="refresh-now" id="refresh-status" aria-live="polite"></span>
       </div>
-    </div>
+      <nav class="nav-jump" aria-label="Jump to section">
+        <a href="#section-workloads">Workloads</a>
+        <a href="#section-networking">Networking</a>
+        <a href="#section-storage">Storage</a>
+        <a href="#section-config">Config</a>
+        <a href="#section-batch">Batch</a>
+        <a href="#section-flux">Flux</a>
+      </nav>
+    </header>
 
     <div class="grid">
-      <div class="card">
+      <div class="card summary-card">
         <h2>Nodes</h2>
         <div id="nodes-value" class="value loading">—</div>
         <div class="meta" id="nodes-meta">—</div>
       </div>
-      <div class="card">
+      <div class="card summary-card">
         <h2>Pods</h2>
         <div id="pods-value" class="value loading">—</div>
         <div class="meta" id="pods-meta">—</div>
       </div>
-      <div class="card">
+      <div class="card summary-card">
         <h2>Deployments</h2>
         <div id="deployments-value" class="value loading">—</div>
         <div class="meta" id="deployments-meta">—</div>
       </div>
-      <div class="card">
+      <div class="card summary-card">
         <h2>Flux Kustomizations</h2>
         <div id="flux-k-value" class="value loading">—</div>
         <div class="meta" id="flux-k-meta">—</div>
       </div>
-      <div class="card">
+      <div class="card summary-card">
         <h2>Flux HelmReleases</h2>
         <div id="flux-helm-value" class="value loading">—</div>
         <div class="meta" id="flux-helm-meta">—</div>
       </div>
-      <div class="card">
+      <div class="card summary-card">
         <h2>Services</h2>
         <div id="services-value" class="value loading">—</div>
         <div class="meta" id="services-meta">—</div>
       </div>
-      <div class="card">
+      <div class="card summary-card">
         <h2>Ingresses</h2>
         <div id="ingresses-value" class="value loading">—</div>
         <div class="meta" id="ingresses-meta">—</div>
       </div>
-      <div class="card">
+      <div class="card summary-card">
         <h2>PV</h2>
         <div id="pv-value" class="value loading">—</div>
         <div class="meta" id="pv-meta">—</div>
       </div>
-      <div class="card">
+      <div class="card summary-card">
         <h2>PVC</h2>
         <div id="pvc-value" class="value loading">—</div>
         <div class="meta" id="pvc-meta">—</div>
       </div>
-      <div class="card">
+      <div class="card summary-card">
         <h2>StorageClasses</h2>
         <div id="sc-value" class="value loading">—</div>
         <div class="meta" id="sc-meta">—</div>
       </div>
-      <div class="card">
+      <div class="card summary-card">
         <h2>StatefulSets</h2>
         <div id="statefulsets-value" class="value loading">—</div>
         <div class="meta" id="statefulsets-meta">—</div>
       </div>
-      <div class="card">
+      <div class="card summary-card">
         <h2>DaemonSets</h2>
         <div id="daemonsets-value" class="value loading">—</div>
         <div class="meta" id="daemonsets-meta">—</div>
       </div>
-      <div class="card">
+      <div class="card summary-card">
         <h2>ConfigMaps</h2>
         <div id="configmaps-value" class="value loading">—</div>
         <div class="meta" id="configmaps-meta">—</div>
       </div>
-      <div class="card">
+      <div class="card summary-card">
         <h2>Secrets</h2>
         <div id="secrets-value" class="value loading">—</div>
         <div class="meta" id="secrets-meta">—</div>
       </div>
-      <div class="card">
+      <div class="card summary-card">
         <h2>Jobs</h2>
         <div id="jobs-value" class="value loading">—</div>
         <div class="meta" id="jobs-meta">—</div>
       </div>
-      <div class="card">
+      <div class="card summary-card">
         <h2>CronJobs</h2>
         <div id="cronjobs-value" class="value loading">—</div>
         <div class="meta" id="cronjobs-meta">—</div>
       </div>
     </div>
 
-    <div class="card" style="margin-bottom: 1rem;">
-      <h2>Nodes</h2>
-      <div id="nodes-table-wrap"><p class="loading">Loading…</p></div>
-    </div>
-    <div class="card" style="margin-bottom: 1rem;">
-      <h2>Pods</h2>
-      <div id="pods-table-wrap"><p class="loading">Loading…</p></div>
-    </div>
-    <div class="card" style="margin-bottom: 1rem;">
-      <h2>Services</h2>
-      <div id="services-table-wrap"><p class="loading">Loading…</p></div>
-    </div>
-    <div class="card" style="margin-bottom: 1rem;">
-      <h2>Ingresses</h2>
-      <div id="ingresses-table-wrap"><p class="loading">Loading…</p></div>
-    </div>
-    <div class="card" style="margin-bottom: 1rem;">
-      <h2>Deployments</h2>
-      <div id="deployments-table-wrap"><p class="loading">Loading…</p></div>
-    </div>
-    <div class="card" style="margin-bottom: 1rem;">
-      <h2>Flux Kustomizations</h2>
-      <div id="flux-k-table-wrap"><p class="loading">Loading…</p></div>
-    </div>
-    <div class="card" style="margin-bottom: 1rem;">
-      <h2>Flux HelmReleases</h2>
-      <div id="flux-helm-table-wrap"><p class="loading">Loading…</p></div>
-    </div>
-    <div class="card" style="margin-bottom: 1rem;">
-      <h2>Flux GitRepositories</h2>
-      <div id="flux-git-table-wrap"><p class="loading">Loading…</p></div>
-    </div>
-    <div class="card" style="margin-bottom: 1rem;">
-      <h2>PersistentVolumes (PV)</h2>
-      <div id="pv-table-wrap"><p class="loading">Loading…</p></div>
-    </div>
-    <div class="card" style="margin-bottom: 1rem;">
-      <h2>PersistentVolumeClaims (PVC)</h2>
-      <div id="pvc-table-wrap"><p class="loading">Loading…</p></div>
-    </div>
-    <div class="card" style="margin-bottom: 1rem;">
-      <h2>StorageClasses (SC)</h2>
-      <div id="sc-table-wrap"><p class="loading">Loading…</p></div>
-    </div>
-    <div class="card" style="margin-bottom: 1rem;">
-      <h2>StatefulSets</h2>
-      <div id="statefulsets-table-wrap"><p class="loading">Loading…</p></div>
-    </div>
-    <div class="card" style="margin-bottom: 1rem;">
-      <h2>DaemonSets</h2>
-      <div id="daemonsets-table-wrap"><p class="loading">Loading…</p></div>
-    </div>
-    <div class="card" style="margin-bottom: 1rem;">
-      <h2>ConfigMaps</h2>
-      <div id="configmaps-table-wrap"><p class="loading">Loading…</p></div>
-    </div>
-    <div class="card" style="margin-bottom: 1rem;">
-      <h2>Secrets</h2>
-      <div id="secrets-table-wrap"><p class="loading">Loading…</p></div>
-    </div>
-    <div class="card" style="margin-bottom: 1rem;">
-      <h2>Jobs</h2>
-      <div id="jobs-table-wrap"><p class="loading">Loading…</p></div>
-    </div>
-    <div class="card" style="margin-bottom: 1rem;">
-      <h2>CronJobs</h2>
-      <div id="cronjobs-table-wrap"><p class="loading">Loading…</p></div>
-    </div>
+    <h2 class="section-head" id="section-workloads">Workloads</h2>
+    <details class="section-card" open>
+      <summary>Nodes</summary>
+      <div class="card"><div id="nodes-table-wrap" class="table-wrap"><p class="loading">Loading…</p></div></div>
+    </details>
+    <details class="section-card" open>
+      <summary>Pods</summary>
+      <div class="card"><div id="pods-table-wrap" class="table-wrap"><p class="loading">Loading…</p></div></div>
+    </details>
+    <details class="section-card">
+      <summary>Deployments</summary>
+      <div class="card"><div id="deployments-table-wrap" class="table-wrap"><p class="loading">Loading…</p></div></div>
+    </details>
+    <details class="section-card">
+      <summary>StatefulSets</summary>
+      <div class="card"><div id="statefulsets-table-wrap" class="table-wrap"><p class="loading">Loading…</p></div></div>
+    </details>
+    <details class="section-card">
+      <summary>DaemonSets</summary>
+      <div class="card"><div id="daemonsets-table-wrap" class="table-wrap"><p class="loading">Loading…</p></div></div>
+    </details>
 
-    <p class="timestamp" id="page-timestamp">—</p>
-    <p class="timestamp" id="page-relative">—</p>
+    <h2 class="section-head" id="section-networking">Networking</h2>
+    <details class="section-card">
+      <summary>Services</summary>
+      <div class="card"><div id="services-table-wrap" class="table-wrap"><p class="loading">Loading…</p></div></div>
+    </details>
+    <details class="section-card">
+      <summary>Ingresses</summary>
+      <div class="card"><div id="ingresses-table-wrap" class="table-wrap"><p class="loading">Loading…</p></div></div>
+    </details>
+
+    <h2 class="section-head" id="section-storage">Storage</h2>
+    <details class="section-card">
+      <summary>PersistentVolumes (PV)</summary>
+      <div class="card"><div id="pv-table-wrap" class="table-wrap"><p class="loading">Loading…</p></div></div>
+    </details>
+    <details class="section-card">
+      <summary>PersistentVolumeClaims (PVC)</summary>
+      <div class="card"><div id="pvc-table-wrap" class="table-wrap"><p class="loading">Loading…</p></div></div>
+    </details>
+    <details class="section-card">
+      <summary>StorageClasses (SC)</summary>
+      <div class="card"><div id="sc-table-wrap" class="table-wrap"><p class="loading">Loading…</p></div></div>
+    </details>
+
+    <h2 class="section-head" id="section-config">Config &amp; Secrets</h2>
+    <details class="section-card">
+      <summary>ConfigMaps</summary>
+      <div class="card"><div id="configmaps-table-wrap" class="table-wrap"><p class="loading">Loading…</p></div></div>
+    </details>
+    <details class="section-card">
+      <summary>Secrets</summary>
+      <div class="card"><div id="secrets-table-wrap" class="table-wrap"><p class="loading">Loading…</p></div></div>
+    </details>
+
+    <h2 class="section-head" id="section-batch">Batch</h2>
+    <details class="section-card">
+      <summary>Jobs</summary>
+      <div class="card"><div id="jobs-table-wrap" class="table-wrap"><p class="loading">Loading…</p></div></div>
+    </details>
+    <details class="section-card">
+      <summary>CronJobs</summary>
+      <div class="card"><div id="cronjobs-table-wrap" class="table-wrap"><p class="loading">Loading…</p></div></div>
+    </details>
+
+    <h2 class="section-head" id="section-flux">Flux</h2>
+    <details class="section-card" open>
+      <summary>Kustomizations</summary>
+      <div class="card"><div id="flux-k-table-wrap" class="table-wrap"><p class="loading">Loading…</p></div></div>
+    </details>
+    <details class="section-card">
+      <summary>HelmReleases</summary>
+      <div class="card"><div id="flux-helm-table-wrap" class="table-wrap"><p class="loading">Loading…</p></div></div>
+    </details>
+    <details class="section-card">
+      <summary>GitRepositories</summary>
+      <div class="card"><div id="flux-git-table-wrap" class="table-wrap"><p class="loading">Loading…</p></div></div>
+    </details>
   </div>
 
   <script>
@@ -740,6 +864,10 @@
     async function loadAll() {
       setHealth(null);
       document.getElementById('page-timestamp').textContent = 'Loading…';
+      document.getElementById('page-relative').textContent = '';
+      var refreshEl = document.getElementById('refresh-status');
+      if (refreshEl) { refreshEl.textContent = 'Refreshing…'; refreshEl.setAttribute('aria-busy', 'true'); }
+      document.querySelector('.header-sticky').classList.add('refreshing');
       const ns = document.getElementById('namespace-select').value;
 
       try {
@@ -768,6 +896,8 @@
         setHealth(health.status === 'healthy');
         lastUpdatedAt = health.timestamp || new Date().toISOString();
         document.getElementById('page-timestamp').textContent = 'Last updated: ' + lastUpdatedAt;
+        if (refreshEl) { refreshEl.textContent = ''; refreshEl.removeAttribute('aria-busy'); }
+        document.querySelector('.header-sticky').classList.remove('refreshing');
         updateRelativeTime();
 
         // Populate namespace dropdown (keep current selection if still present)
@@ -802,6 +932,8 @@
       } catch (err) {
         setHealth(false);
         document.getElementById('page-timestamp').textContent = 'Error: ' + err.message;
+        if (refreshEl) { refreshEl.textContent = ''; refreshEl.removeAttribute('aria-busy'); }
+        document.querySelector('.header-sticky').classList.remove('refreshing');
         document.getElementById('nodes-table-wrap').innerHTML = '<p class="error-msg">Failed to reach API. Is the backend running? Use Ingress so frontend and API are same-origin, or enable CORS.</p>';
         document.getElementById('pods-table-wrap').innerHTML = '';
         document.getElementById('deployments-table-wrap').innerHTML = '';
