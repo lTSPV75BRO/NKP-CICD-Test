@@ -118,10 +118,20 @@ Backend and frontend can send logs to Kafka (Strimzi in the `kafka` namespace).
 
 **Infrastructure (apply before or with Flux):**
 
-- **Kafka cluster + topic:** Under `clusters/wolverine/infrastructure/kafka/`:
-  - `kafka-cluster.yaml` – Strimzi Kafka (1 broker, ephemeral); bootstrap: `cluster-kafka-bootstrap.kafka.svc.cluster.local:9092`
-  - `kafka-topic-logs.yaml` – Topic `monitoring-logs` (3 partitions)
-- Apply infrastructure (including Strimzi operator) so the cluster and topic exist.
+- **One-shot apply** (namespace, CRDs, Strimzi operator, Kafka cluster, topic):
+  ```bash
+  kubectl apply -k clusters/wolverine/infrastructure/
+  ```
+  Wait a few minutes for the operator to create broker pods and the `cluster-kafka-bootstrap` service.
+
+- **If the Kafka cluster does not get created:**  
+  Check that the Kafka CR exists and the operator has permission in the `kafka` namespace:
+  ```bash
+  kubectl get kafka,kafkatopic -n kafka
+  kubectl describe kafka cluster -n kafka    # status and events
+  kubectl logs -n kafka deployment/strimzi-cluster-operator --tail=50
+  ```
+  Ensure RBAC bindings reference namespace `kafka` (the operator manifest in this repo uses `kafka`; upstream Strimzi uses `myproject`).
 
 **Backend:**  
 When `KAFKA_BOOTSTRAP_SERVERS` is set (e.g. in `backend.yaml`), the app sends log records (JSON) to the topic `monitoring-logs` (or `KAFKA_LOG_TOPIC`). Each message includes `source: monitoring-backend`, level, message, timestamp, logger name.
@@ -195,6 +205,15 @@ To disable backend Kafka logging, remove or unset the `KAFKA_BOOTSTRAP_SERVERS` 
 | `GET /api/flux/gitrepositories` | Flux GitRepositories |
 | `GET /api/workloads` | Aggregated summary |
 | `GET /api/docs` | OpenAPI (Swagger) UI |
+| `GET /api/pv` | PersistentVolumes |
+| `GET /api/pvc` | PersistentVolumeClaims (optional `?namespace=...`) |
+| `GET /api/storageclasses` or `/api/sc` | StorageClasses |
+| `GET /api/statefulsets` | StatefulSets (optional `?namespace=...`) |
+| `GET /api/daemonsets` | DaemonSets (optional `?namespace=...`) |
+| `GET /api/configmaps` | ConfigMaps (optional `?namespace=...`) |
+| `GET /api/secrets` | Secrets (optional `?namespace=...`) |
+| `GET /api/jobs` | Jobs (optional `?namespace=...`) |
+| `GET /api/cronjobs` | CronJobs (optional `?namespace=...`) |
 
 ## RBAC
 

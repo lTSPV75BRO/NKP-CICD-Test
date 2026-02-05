@@ -2,5 +2,6 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - namespace.yaml
-  - strimzi-crds.yaml
-  - kafka
+  # CRDs are bundled in operator/strimzi-cluster-operator.yaml; do not add strimzi-crds.yaml here or CRDs are duplicated
+  - operator   # Strimzi operator (CRDs + Deployment + RBAC)
+  - kafka      # Kafka cluster + monitoring-logs topic

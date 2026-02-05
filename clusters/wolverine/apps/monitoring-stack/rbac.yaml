@@ -10,10 +10,16 @@ metadata:
   name: monitoring-viewer
 rules:
 - apiGroups: [""]
-  resources: ["pods","services","nodes","namespaces"]
+  resources: ["pods","services","nodes","namespaces","persistentvolumes","persistentvolumeclaims","configmaps","secrets"]
+  verbs: ["get","list"]
+- apiGroups: ["storage.k8s.io"]
+  resources: ["storageclasses"]
   verbs: ["get","list"]
 - apiGroups: ["apps"]
-  resources: ["deployments"]
+  resources: ["deployments","statefulsets","daemonsets"]
+  verbs: ["get","list"]
+- apiGroups: ["batch"]
+  resources: ["jobs","cronjobs"]
   verbs: ["get","list"]
 - apiGroups: ["networking.k8s.io"]
   resources: ["ingresses"]

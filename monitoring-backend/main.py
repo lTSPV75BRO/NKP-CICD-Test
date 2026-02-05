@@ -24,7 +24,9 @@ except config.ConfigException:
 
 v1_core = client.CoreV1Api()
 v1_apps = client.AppsV1Api()
+batch_v1 = client.BatchV1Api()
 networking_v1 = client.NetworkingV1Api()
+storage_v1 = client.StorageV1Api()
 custom_api = client.CustomObjectsApi()
 
 
@@ -279,6 +281,89 @@ def list_ingresses(namespace: str | None = None):
         return {"error": e.reason or str(e), "ingresses": [], "count": 0, "timestamp": _now_iso()}
 
 
+@app.get("/api/pv")
+def list_pv():
+    """List PersistentVolumes (cluster-scoped)."""
+    try:
+        ret = v1_core.list_persistent_volume()
+        pvs = []
+        for i in ret.items:
+            status = i.status.phase if i.status else "Unknown"
+            sc = i.spec.storage_class_name if i.spec else None
+            cap = None
+            if i.spec and i.spec.capacity and "storage" in i.spec.capacity:
+                cap = i.spec.capacity["storage"]
+            access = ",".join(i.spec.access_modes) if i.spec and i.spec.access_modes else "—"
+            pvs.append({
+                "name": i.metadata.name,
+                "status": status,
+                "storageClass": sc or "—",
+                "capacity": cap or "—",
+                "accessModes": access,
+            })
+        return {"persistentvolumes": pvs, "count": len(pvs), "timestamp": _now_iso()}
+    except ApiException as e:
+        return {"error": e.reason or str(e), "persistentvolumes": [], "count": 0, "timestamp": _now_iso()}
+
+
+@app.get("/api/pvc")
+@app.get("/api/pvc/")
+def list_pvc(namespace: str | None = None):
+    """List PersistentVolumeClaims (optional ?namespace=...)."""
+    try:
+        if namespace:
+            ret = v1_core.list_namespaced_persistent_volume_claim(namespace=namespace)
+        else:
+            ret = v1_core.list_persistent_volume_claim_for_all_namespaces()
+        pvcs = []
+        for i in ret.items:
+            phase = i.status.phase if i.status else "Unknown"
+            sc = i.spec.storage_class_name if i.spec else None
+            cap = None
+            if i.spec and i.spec.resources and i.spec.resources.requests and "storage" in i.spec.resources.requests:
+                cap = i.spec.resources.requests["storage"]
+            access = ",".join(i.spec.access_modes) if i.spec and i.spec.access_modes else "—"
+            volume = i.spec.volume_name if i.spec else None
+            pvcs.append({
+                "name": i.metadata.name,
+                "namespace": i.metadata.namespace,
+                "status": phase,
+                "storageClass": sc or "—",
+                "capacity": cap or "—",
+                "accessModes": access,
+                "volume": volume or "—",
+            })
+        return {"persistentvolumeclaims": pvcs, "count": len(pvcs), "timestamp": _now_iso()}
+    except ApiException as e:
+        return {"error": e.reason or str(e), "persistentvolumeclaims": [], "count": 0, "timestamp": _now_iso()}
+
+
+@app.get("/api/storageclasses")
+@app.get("/api/storageclasses/")
+@app.get("/api/sc")  # alias
+@app.get("/api/sc/")
+def list_storageclasses():
+    """List StorageClasses (cluster-scoped)."""
+    try:
+        ret = storage_v1.list_storage_class()
+        scs = []
+        for i in ret.items:
+            provisioner = i.provisioner if i.provisioner else "—"
+            reclaim = i.reclaim_policy or "—"
+            default = "false"
+            if i.metadata and i.metadata.annotations:
+                default = i.metadata.annotations.get("storageclass.kubernetes.io/is-default-class", "false")
+            scs.append({
+                "name": i.metadata.name,
+                "provisioner": provisioner,
+                "reclaimPolicy": reclaim,
+                "isDefault": default == "true",
+            })
+        return {"storageclasses": scs, "count": len(scs), "timestamp": _now_iso()}
+    except ApiException as e:
+        return {"error": e.reason or str(e), "storageclasses": [], "count": 0, "timestamp": _now_iso()}
+
+
 @app.get("/api/deployments")
 def list_deployments(namespace: str | None = None):
     """List deployments and their ready/desired replicas."""
@@ -301,6 +386,156 @@ def list_deployments(namespace: str | None = None):
         return {"deployments": deployments, "count": len(deployments), "timestamp": _now_iso()}
     except ApiException as e:
         return {"error": e.reason or str(e), "deployments": [], "count": 0, "timestamp": _now_iso()}
+
+
+@app.get("/api/statefulsets")
+@app.get("/api/statefulsets/")
+def list_statefulsets(namespace: str | None = None):
+    """List StatefulSets and their ready/desired replicas."""
+    try:
+        if namespace:
+            ret = v1_apps.list_namespaced_stateful_set(namespace=namespace)
+        else:
+            ret = v1_apps.list_stateful_set_for_all_namespaces()
+        items = []
+        for i in ret.items:
+            ready = i.status.ready_replicas or 0
+            desired = i.spec.replicas or 0
+            items.append({
+                "name": i.metadata.name,
+                "namespace": i.metadata.namespace,
+                "ready": ready,
+                "desired": desired,
+            })
+        return {"statefulsets": items, "count": len(items), "timestamp": _now_iso()}
+    except ApiException as e:
+        return {"error": e.reason or str(e), "statefulsets": [], "count": 0, "timestamp": _now_iso()}
+
+
+@app.get("/api/daemonsets")
+@app.get("/api/daemonsets/")
+def list_daemonsets(namespace: str | None = None):
+    """List DaemonSets and their desired/current/ready number."""
+    try:
+        if namespace:
+            ret = v1_apps.list_namespaced_daemon_set(namespace=namespace)
+        else:
+            ret = v1_apps.list_daemon_set_for_all_namespaces()
+        items = []
+        for i in ret.items:
+            desired = i.status.desired_number_scheduled or 0
+            current = i.status.current_number_scheduled or 0
+            ready = i.status.number_ready or 0
+            items.append({
+                "name": i.metadata.name,
+                "namespace": i.metadata.namespace,
+                "desired": desired,
+                "current": current,
+                "ready": ready,
+            })
+        return {"daemonsets": items, "count": len(items), "timestamp": _now_iso()}
+    except ApiException as e:
+        return {"error": e.reason or str(e), "daemonsets": [], "count": 0, "timestamp": _now_iso()}
+
+
+@app.get("/api/configmaps")
+@app.get("/api/configmaps/")
+def list_configmaps(namespace: str | None = None):
+    """List ConfigMaps (name/namespace only; no data)."""
+    try:
+        if namespace:
+            ret = v1_core.list_namespaced_config_map(namespace=namespace)
+        else:
+            ret = v1_core.list_config_map_for_all_namespaces()
+        items = []
+        for i in ret.items:
+            items.append({
+                "name": i.metadata.name,
+                "namespace": i.metadata.namespace,
+            })
+        return {"configmaps": items, "count": len(items), "timestamp": _now_iso()}
+    except ApiException as e:
+        return {"error": e.reason or str(e), "configmaps": [], "count": 0, "timestamp": _now_iso()}
+
+
+@app.get("/api/secrets")
+@app.get("/api/secrets/")
+def list_secrets(namespace: str | None = None):
+    """List Secrets (name/namespace/type only; no data)."""
+    try:
+        if namespace:
+            ret = v1_core.list_namespaced_secret(namespace=namespace)
+        else:
+            ret = v1_core.list_secret_for_all_namespaces()
+        items = []
+        for i in ret.items:
+            items.append({
+                "name": i.metadata.name,
+                "namespace": i.metadata.namespace,
+                "type": i.type or "Opaque",
+            })
+        return {"secrets": items, "count": len(items), "timestamp": _now_iso()}
+    except ApiException as e:
+        return {"error": e.reason or str(e), "secrets": [], "count": 0, "timestamp": _now_iso()}
+
+
+@app.get("/api/jobs")
+@app.get("/api/jobs/")
+def list_jobs(namespace: str | None = None):
+    """List Jobs with succeeded/failed/active status."""
+    try:
+        if namespace:
+            ret = batch_v1.list_namespaced_job(namespace=namespace)
+        else:
+            ret = batch_v1.list_job_for_all_namespaces()
+        items = []
+        for i in ret.items:
+            status = i.status
+            succeeded = status.succeeded or 0 if status else 0
+            failed = status.failed or 0 if status else 0
+            active = status.active or 0 if status else 0
+            complete = status.completion_time is not None if status else False
+            items.append({
+                "name": i.metadata.name,
+                "namespace": i.metadata.namespace,
+                "succeeded": succeeded,
+                "failed": failed,
+                "active": active,
+                "complete": complete,
+            })
+        return {"jobs": items, "count": len(items), "timestamp": _now_iso()}
+    except ApiException as e:
+        return {"error": e.reason or str(e), "jobs": [], "count": 0, "timestamp": _now_iso()}
+
+
+@app.get("/api/cronjobs")
+@app.get("/api/cronjobs/")
+def list_cronjobs(namespace: str | None = None):
+    """List CronJobs with schedule and last run."""
+    try:
+        if namespace:
+            ret = batch_v1.list_namespaced_cron_job(namespace=namespace)
+        else:
+            ret = batch_v1.list_cron_job_for_all_namespaces()
+        items = []
+        for i in ret.items:
+            schedule = i.spec.schedule if i.spec else "—"
+            last_schedule = None
+            if i.status and i.status.last_successful_time:
+                last_schedule = i.status.last_successful_time.isoformat()
+            elif i.status and i.status.last_schedule_time:
+                last_schedule = i.status.last_schedule_time.isoformat()
+            suspended = i.spec.suspend if i.spec is not None else False
+            items.append({
+                "name": i.metadata.name,
+                "namespace": i.metadata.namespace,
+                "schedule": schedule,
+                "lastSchedule": last_schedule,
+                "suspended": suspended,
+            })
+        return {"cronjobs": items, "count": len(items), "timestamp": _now_iso()}
+    except ApiException as e:
+        return {"error": e.reason or str(e), "cronjobs": [], "count": 0, "timestamp": _now_iso()}
 
 
 def _flux_list(group: str, version: str, plural: str):
@@ -374,11 +609,20 @@ def list_flux_gitrepositories():
 
 @app.get("/api/workloads")
 def workloads_summary():
-    """Aggregated view: health, nodes, pod count, deployments, Flux (if present)."""
+    """Aggregated view: health, nodes, pods, deployments, PV, PVC, StorageClasses, Flux (if present)."""
     health_resp = health()
     nodes_resp = list_nodes()
     pods_resp = list_pods()
     deployments_resp = list_deployments()
+    statefulsets_resp = list_statefulsets()
+    daemonsets_resp = list_daemonsets()
+    configmaps_resp = list_configmaps()
+    secrets_resp = list_secrets()
+    jobs_resp = list_jobs()
+    cronjobs_resp = list_cronjobs()
+    pv_resp = list_pv()
+    pvc_resp = list_pvc()
+    sc_resp = list_storageclasses()
     kustomizations_resp = list_flux_kustomizations()
     gitrepos_resp = list_flux_gitrepositories()
 
@@ -387,6 +631,15 @@ def workloads_summary():
         "nodes": nodes_resp,
         "pods": pods_resp,
         "deployments": deployments_resp,
+        "statefulsets": statefulsets_resp,
+        "daemonsets": daemonsets_resp,
+        "configmaps": configmaps_resp,
+        "secrets": secrets_resp,
+        "jobs": jobs_resp,
+        "cronjobs": cronjobs_resp,
+        "persistentvolumes": pv_resp,
+        "persistentvolumeclaims": pvc_resp,
+        "storageclasses": sc_resp,
         "flux": {
             "kustomizations": kustomizations_resp,
             "gitrepositories": gitrepos_resp,

@@ -161,7 +161,6 @@
           <option value="60">60s</option>
           <option value="0">Off</option>
         </select>
-        <div id="health-badge" class="health-badge loading"><span class="dot"></span> <span>Checking…</span></div>
         <a href="/api/docs" target="_blank" rel="noopener" class="api-docs-link">API docs</a>
         <button class="refresh" type="button" onclick="loadAll()">Refresh</button>
         <button class="refresh" type="button" onclick="copySummary()" title="Copy summary JSON to clipboard">Copy summary</button>
@@ -204,6 +203,51 @@
         <div id="ingresses-value" class="value loading">—</div>
         <div class="meta" id="ingresses-meta">—</div>
       </div>
+      <div class="card">
+        <h2>PV</h2>
+        <div id="pv-value" class="value loading">—</div>
+        <div class="meta" id="pv-meta">—</div>
+      </div>
+      <div class="card">
+        <h2>PVC</h2>
+        <div id="pvc-value" class="value loading">—</div>
+        <div class="meta" id="pvc-meta">—</div>
+      </div>
+      <div class="card">
+        <h2>StorageClasses</h2>
+        <div id="sc-value" class="value loading">—</div>
+        <div class="meta" id="sc-meta">—</div>
+      </div>
+      <div class="card">
+        <h2>StatefulSets</h2>
+        <div id="statefulsets-value" class="value loading">—</div>
+        <div class="meta" id="statefulsets-meta">—</div>
+      </div>
+      <div class="card">
+        <h2>DaemonSets</h2>
+        <div id="daemonsets-value" class="value loading">—</div>
+        <div class="meta" id="daemonsets-meta">—</div>
+      </div>
+      <div class="card">
+        <h2>ConfigMaps</h2>
+        <div id="configmaps-value" class="value loading">—</div>
+        <div class="meta" id="configmaps-meta">—</div>
+      </div>
+      <div class="card">
+        <h2>Secrets</h2>
+        <div id="secrets-value" class="value loading">—</div>
+        <div class="meta" id="secrets-meta">—</div>
+      </div>
+      <div class="card">
+        <h2>Jobs</h2>
+        <div id="jobs-value" class="value loading">—</div>
+        <div class="meta" id="jobs-meta">—</div>
+      </div>
+      <div class="card">
+        <h2>CronJobs</h2>
+        <div id="cronjobs-value" class="value loading">—</div>
+        <div class="meta" id="cronjobs-meta">—</div>
+      </div>
     </div>
 
     <div class="card" style="margin-bottom: 1rem;">
@@ -211,7 +255,7 @@
       <div id="nodes-table-wrap"><p class="loading">Loading…</p></div>
     </div>
     <div class="card" style="margin-bottom: 1rem;">
-      <h2>Pods (sample)</h2>
+      <h2>Pods</h2>
       <div id="pods-table-wrap"><p class="loading">Loading…</p></div>
     </div>
     <div class="card" style="margin-bottom: 1rem;">
@@ -237,6 +281,42 @@
     <div class="card" style="margin-bottom: 1rem;">
       <h2>Flux GitRepositories</h2>
       <div id="flux-git-table-wrap"><p class="loading">Loading…</p></div>
+    </div>
+    <div class="card" style="margin-bottom: 1rem;">
+      <h2>PersistentVolumes (PV)</h2>
+      <div id="pv-table-wrap"><p class="loading">Loading…</p></div>
+    </div>
+    <div class="card" style="margin-bottom: 1rem;">
+      <h2>PersistentVolumeClaims (PVC)</h2>
+      <div id="pvc-table-wrap"><p class="loading">Loading…</p></div>
+    </div>
+    <div class="card" style="margin-bottom: 1rem;">
+      <h2>StorageClasses (SC)</h2>
+      <div id="sc-table-wrap"><p class="loading">Loading…</p></div>
+    </div>
+    <div class="card" style="margin-bottom: 1rem;">
+      <h2>StatefulSets</h2>
+      <div id="statefulsets-table-wrap"><p class="loading">Loading…</p></div>
+    </div>
+    <div class="card" style="margin-bottom: 1rem;">
+      <h2>DaemonSets</h2>
+      <div id="daemonsets-table-wrap"><p class="loading">Loading…</p></div>
+    </div>
+    <div class="card" style="margin-bottom: 1rem;">
+      <h2>ConfigMaps</h2>
+      <div id="configmaps-table-wrap"><p class="loading">Loading…</p></div>
+    </div>
+    <div class="card" style="margin-bottom: 1rem;">
+      <h2>Secrets</h2>
+      <div id="secrets-table-wrap"><p class="loading">Loading…</p></div>
+    </div>
+    <div class="card" style="margin-bottom: 1rem;">
+      <h2>Jobs</h2>
+      <div id="jobs-table-wrap"><p class="loading">Loading…</p></div>
+    </div>
+    <div class="card" style="margin-bottom: 1rem;">
+      <h2>CronJobs</h2>
+      <div id="cronjobs-table-wrap"><p class="loading">Loading…</p></div>
     </div>
 
     <p class="timestamp" id="page-timestamp">—</p>
@@ -411,6 +491,191 @@
         '</tbody></table>';
     }
 
+    function renderPv(data) {
+      const wrap = document.getElementById('pv-table-wrap');
+      if (data.error) {
+        wrap.innerHTML = '<p class="error-msg">' + escapeHtml(data.error) + '</p>';
+        return;
+      }
+      const pvs = data.persistentvolumes || [];
+      document.getElementById('pv-value').textContent = pvs.length;
+      document.getElementById('pv-value').className = 'value';
+      const bound = pvs.filter(p => p.status === 'Bound').length;
+      document.getElementById('pv-meta').textContent = bound + ' bound';
+      if (pvs.length === 0) {
+        wrap.innerHTML = '<p class="muted">No PersistentVolumes</p>';
+        return;
+      }
+      wrap.innerHTML = '<table><thead><tr><th>Name</th><th>Status</th><th>StorageClass</th><th>Capacity</th><th>Access Modes</th></tr></thead><tbody>' +
+        pvs.map(p => '<tr><td>' + escapeHtml(p.name) + '</td><td><span class="status-dot ' + (p.status === 'Bound' ? 'ready' : p.status === 'Available' ? 'pending' : 'unknown') + '"></span>' + escapeHtml(p.status) + '</td><td>' + escapeHtml(p.storageClass || '—') + '</td><td>' + escapeHtml(p.capacity || '—') + '</td><td>' + escapeHtml(p.accessModes || '—') + '</td></tr>').join('') +
+        '</tbody></table>';
+    }
+
+    function renderPvc(data) {
+      const wrap = document.getElementById('pvc-table-wrap');
+      if (data.error) {
+        wrap.innerHTML = '<p class="error-msg">' + escapeHtml(data.error) + '</p>';
+        return;
+      }
+      const pvcs = data.persistentvolumeclaims || [];
+      document.getElementById('pvc-value').textContent = pvcs.length;
+      document.getElementById('pvc-value').className = 'value';
+      const nsSel = document.getElementById('namespace-select').value;
+      document.getElementById('pvc-meta').textContent = nsSel ? 'Namespace: ' + nsSel : 'All namespaces';
+      if (pvcs.length === 0) {
+        wrap.innerHTML = '<p class="muted">No PersistentVolumeClaims</p>';
+        return;
+      }
+      wrap.innerHTML = '<table><thead><tr><th>Name</th><th>Namespace</th><th>Status</th><th>StorageClass</th><th>Capacity</th><th>Volume</th></tr></thead><tbody>' +
+        pvcs.map(p => '<tr><td>' + escapeHtml(p.name) + '</td><td>' + escapeHtml(p.namespace) + '</td><td><span class="status-dot ' + (p.status === 'Bound' ? 'ready' : p.status === 'Pending' ? 'pending' : 'unknown') + '"></span>' + escapeHtml(p.status) + '</td><td>' + escapeHtml(p.storageClass || '—') + '</td><td>' + escapeHtml(p.capacity || '—') + '</td><td>' + escapeHtml(p.volume || '—') + '</td></tr>').join('') +
+        '</tbody></table>';
+    }
+
+    function renderStorageClasses(data) {
+      const wrap = document.getElementById('sc-table-wrap');
+      if (data.error) {
+        wrap.innerHTML = '<p class="error-msg">' + escapeHtml(data.error) + '</p>';
+        return;
+      }
+      const scs = data.storageclasses || [];
+      document.getElementById('sc-value').textContent = scs.length;
+      document.getElementById('sc-value').className = 'value';
+      const def = scs.filter(s => s.isDefault).length;
+      document.getElementById('sc-meta').textContent = def ? def + ' default' : 'StorageClasses';
+      if (scs.length === 0) {
+        wrap.innerHTML = '<p class="muted">No StorageClasses</p>';
+        return;
+      }
+      wrap.innerHTML = '<table><thead><tr><th>Name</th><th>Provisioner</th><th>Reclaim Policy</th><th>Default</th></tr></thead><tbody>' +
+        scs.map(s => '<tr><td>' + escapeHtml(s.name) + '</td><td>' + escapeHtml(s.provisioner || '—') + '</td><td>' + escapeHtml(s.reclaimPolicy || '—') + '</td><td>' + (s.isDefault ? 'Yes' : '—') + '</td></tr>').join('') +
+        '</tbody></table>';
+    }
+
+    function renderStatefulSets(data) {
+      const wrap = document.getElementById('statefulsets-table-wrap');
+      if (data.error) {
+        wrap.innerHTML = '<p class="error-msg">' + escapeHtml(data.error) + '</p>';
+        return;
+      }
+      const items = data.statefulsets || [];
+      document.getElementById('statefulsets-value').textContent = items.length;
+      document.getElementById('statefulsets-value').className = 'value';
+      const allReady = items.filter(d => d.ready === d.desired).length;
+      const nsSel = document.getElementById('namespace-select').value;
+      document.getElementById('statefulsets-meta').textContent = (nsSel ? 'Namespace: ' + nsSel + ' · ' : '') + allReady + '/' + items.length + ' ready';
+      if (items.length === 0) {
+        wrap.innerHTML = '<p class="muted">No StatefulSets</p>';
+        return;
+      }
+      wrap.innerHTML = '<table><thead><tr><th>Name</th><th>Namespace</th><th>Ready</th><th>Desired</th></tr></thead><tbody>' +
+        items.map(d => '<tr><td>' + escapeHtml(d.name) + '</td><td>' + escapeHtml(d.namespace) + '</td><td>' + d.ready + '</td><td>' + d.desired + '</td></tr>').join('') +
+        '</tbody></table>';
+    }
+
+    function renderDaemonSets(data) {
+      const wrap = document.getElementById('daemonsets-table-wrap');
+      if (data.error) {
+        wrap.innerHTML = '<p class="error-msg">' + escapeHtml(data.error) + '</p>';
+        return;
+      }
+      const items = data.daemonsets || [];
+      document.getElementById('daemonsets-value').textContent = items.length;
+      document.getElementById('daemonsets-value').className = 'value';
+      const allReady = items.filter(d => d.ready === d.desired).length;
+      const nsSel = document.getElementById('namespace-select').value;
+      document.getElementById('daemonsets-meta').textContent = (nsSel ? 'Namespace: ' + nsSel + ' · ' : '') + allReady + '/' + items.length + ' ready';
+      if (items.length === 0) {
+        wrap.innerHTML = '<p class="muted">No DaemonSets</p>';
+        return;
+      }
+      wrap.innerHTML = '<table><thead><tr><th>Name</th><th>Namespace</th><th>Desired</th><th>Current</th><th>Ready</th></tr></thead><tbody>' +
+        items.map(d => '<tr><td>' + escapeHtml(d.name) + '</td><td>' + escapeHtml(d.namespace) + '</td><td>' + d.desired + '</td><td>' + d.current + '</td><td>' + d.ready + '</td></tr>').join('') +
+        '</tbody></table>';
+    }
+
+    function renderConfigMaps(data) {
+      const wrap = document.getElementById('configmaps-table-wrap');
+      if (data.error) {
+        wrap.innerHTML = '<p class="error-msg">' + escapeHtml(data.error) + '</p>';
+        return;
+      }
+      const items = data.configmaps || [];
+      document.getElementById('configmaps-value').textContent = items.length;
+      document.getElementById('configmaps-value').className = 'value';
+      const nsSel = document.getElementById('namespace-select').value;
+      document.getElementById('configmaps-meta').textContent = nsSel ? 'Namespace: ' + nsSel : 'All namespaces';
+      if (items.length === 0) {
+        wrap.innerHTML = '<p class="muted">No ConfigMaps</p>';
+        return;
+      }
+      const sample = items.slice(0, 100);
+      wrap.innerHTML = '<table><thead><tr><th>Name</th><th>Namespace</th></tr></thead><tbody>' +
+        sample.map(c => '<tr><td>' + escapeHtml(c.name) + '</td><td>' + escapeHtml(c.namespace) + '</td></tr>').join('') +
+        '</tbody></table>' + (items.length > 100 ? '<p class="meta">Showing first 100 of ' + items.length + '</p>' : '');
+    }
+
+    function renderSecrets(data) {
+      const wrap = document.getElementById('secrets-table-wrap');
+      if (data.error) {
+        wrap.innerHTML = '<p class="error-msg">' + escapeHtml(data.error) + '</p>';
+        return;
+      }
+      const items = data.secrets || [];
+      document.getElementById('secrets-value').textContent = items.length;
+      document.getElementById('secrets-value').className = 'value';
+      const nsSel = document.getElementById('namespace-select').value;
+      document.getElementById('secrets-meta').textContent = nsSel ? 'Namespace: ' + nsSel : 'All namespaces';
+      if (items.length === 0) {
+        wrap.innerHTML = '<p class="muted">No Secrets</p>';
+        return;
+      }
+      const sample = items.slice(0, 100);
+      wrap.innerHTML = '<table><thead><tr><th>Name</th><th>Namespace</th><th>Type</th></tr></thead><tbody>' +
+        sample.map(s => '<tr><td>' + escapeHtml(s.name) + '</td><td>' + escapeHtml(s.namespace) + '</td><td>' + escapeHtml(s.type || '—') + '</td></tr>').join('') +
+        '</tbody></table>' + (items.length > 100 ? '<p class="meta">Showing first 100 of ' + items.length + '</p>' : '');
+    }
+
+    function renderJobs(data) {
+      const wrap = document.getElementById('jobs-table-wrap');
+      if (data.error) {
+        wrap.innerHTML = '<p class="error-msg">' + escapeHtml(data.error) + '</p>';
+        return;
+      }
+      const items = data.jobs || [];
+      document.getElementById('jobs-value').textContent = items.length;
+      document.getElementById('jobs-value').className = 'value';
+      const complete = items.filter(j => j.complete).length;
+      const nsSel = document.getElementById('namespace-select').value;
+      document.getElementById('jobs-meta').textContent = (nsSel ? 'Namespace: ' + nsSel + ' · ' : '') + complete + ' complete';
+      if (items.length === 0) {
+        wrap.innerHTML = '<p class="muted">No Jobs</p>';
+        return;
+      }
+      wrap.innerHTML = '<table><thead><tr><th>Name</th><th>Namespace</th><th>Succeeded</th><th>Failed</th><th>Active</th><th>Complete</th></tr></thead><tbody>' +
+        items.map(j => '<tr><td>' + escapeHtml(j.name) + '</td><td>' + escapeHtml(j.namespace) + '</td><td>' + j.succeeded + '</td><td>' + j.failed + '</td><td>' + j.active + '</td><td>' + (j.complete ? 'Yes' : '—') + '</td></tr>').join('') +
+        '</tbody></table>';
+    }
+
+    function renderCronJobs(data) {
+      const wrap = document.getElementById('cronjobs-table-wrap');
+      if (data.error) {
+        wrap.innerHTML = '<p class="error-msg">' + escapeHtml(data.error) + '</p>';
+        return;
+      }
+      const items = data.cronjobs || [];
+      document.getElementById('cronjobs-value').textContent = items.length;
+      document.getElementById('cronjobs-value').className = 'value';
+      const suspended = items.filter(c => c.suspended).length;
+      document.getElementById('cronjobs-meta').textContent = suspended ? suspended + ' suspended' : 'CronJobs';
+      if (items.length === 0) {
+        wrap.innerHTML = '<p class="muted">No CronJobs</p>';
+        return;
+      }
+      wrap.innerHTML = '<table><thead><tr><th>Name</th><th>Namespace</th><th>Schedule</th><th>Last run</th><th>Suspended</th></tr></thead><tbody>' +
+        items.map(c => '<tr><td>' + escapeHtml(c.name) + '</td><td>' + escapeHtml(c.namespace) + '</td><td>' + escapeHtml(c.schedule || '—') + '</td><td>' + (c.lastSchedule ? escapeHtml(c.lastSchedule.replace('T', ' ').slice(0, 19)) : '—') + '</td><td>' + (c.suspended ? 'Yes' : '—') + '</td></tr>').join('') +
+        '</tbody></table>';
+    }
+
     function relativeTime(isoStr) {
       if (!isoStr) return '';
       const d = new Date(isoStr);
@@ -478,7 +743,7 @@
       const ns = document.getElementById('namespace-select').value;
 
       try {
-        const [health, nodes, namespaces, pods, services, ingresses, deployments, fluxK, fluxHelm, fluxGit] = await Promise.all([
+        const [health, nodes, namespaces, pods, services, ingresses, deployments, statefulsets, daemonsets, configmaps, secrets, jobs, cronjobs, pv, pvc, sc, fluxK, fluxHelm, fluxGit] = await Promise.all([
           fetchApi('/health'),
           fetchApi('/nodes'),
           fetchApi('/ns'),
@@ -486,6 +751,15 @@
           fetchApi('/svc', ns ? { namespace: ns } : {}),
           fetchApi('/ingresses', ns ? { namespace: ns } : {}),
           fetchApi('/deployments', ns ? { namespace: ns } : {}),
+          fetchApi('/statefulsets', ns ? { namespace: ns } : {}),
+          fetchApi('/daemonsets', ns ? { namespace: ns } : {}),
+          fetchApi('/configmaps', ns ? { namespace: ns } : {}),
+          fetchApi('/secrets', ns ? { namespace: ns } : {}),
+          fetchApi('/jobs', ns ? { namespace: ns } : {}),
+          fetchApi('/cronjobs', ns ? { namespace: ns } : {}),
+          fetchApi('/pv'),
+          fetchApi('/pvc', ns ? { namespace: ns } : {}),
+          fetchApi('/sc'),
           fetchApi('/flux/kustomizations'),
           fetchApi('/flux/helmreleases'),
           fetchApi('/flux/gitrepositories'),
@@ -513,6 +787,15 @@
         renderServices(services);
         renderIngresses(ingresses);
         renderDeployments(deployments);
+        renderStatefulSets(statefulsets);
+        renderDaemonSets(daemonsets);
+        renderConfigMaps(configmaps);
+        renderSecrets(secrets);
+        renderJobs(jobs);
+        renderCronJobs(cronjobs);
+        renderPv(pv);
+        renderPvc(pvc);
+        renderStorageClasses(sc);
         renderFluxK(fluxK);
         renderFluxHelm(fluxHelm);
         renderFluxGit(fluxGit);
@@ -524,6 +807,15 @@
         document.getElementById('deployments-table-wrap').innerHTML = '';
         document.getElementById('services-table-wrap').innerHTML = '';
         document.getElementById('ingresses-table-wrap').innerHTML = '';
+        document.getElementById('pv-table-wrap').innerHTML = '';
+        document.getElementById('pvc-table-wrap').innerHTML = '';
+        document.getElementById('sc-table-wrap').innerHTML = '';
+        document.getElementById('statefulsets-table-wrap').innerHTML = '';
+        document.getElementById('daemonsets-table-wrap').innerHTML = '';
+        document.getElementById('configmaps-table-wrap').innerHTML = '';
+        document.getElementById('secrets-table-wrap').innerHTML = '';
+        document.getElementById('jobs-table-wrap').innerHTML = '';
+        document.getElementById('cronjobs-table-wrap').innerHTML = '';
         document.getElementById('flux-k-table-wrap').innerHTML = '';
         document.getElementById('flux-helm-table-wrap').innerHTML = '';
         document.getElementById('flux-git-table-wrap').innerHTML = '';
@@ -532,6 +824,15 @@
         document.getElementById('deployments-value').textContent = '—';
         document.getElementById('services-value').textContent = '—';
         document.getElementById('ingresses-value').textContent = '—';
+        document.getElementById('pv-value').textContent = '—';
+        document.getElementById('pvc-value').textContent = '—';
+        document.getElementById('sc-value').textContent = '—';
+        document.getElementById('statefulsets-value').textContent = '—';
+        document.getElementById('daemonsets-value').textContent = '—';
+        document.getElementById('configmaps-value').textContent = '—';
+        document.getElementById('secrets-value').textContent = '—';
+        document.getElementById('jobs-value').textContent = '—';
+        document.getElementById('cronjobs-value').textContent = '—';
         document.getElementById('flux-k-value').textContent = '—';
         document.getElementById('flux-helm-value').textContent = '—';
       }

@@ -3149,7 +3149,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: strimzi-cluster-operator
-    namespace: myproject
+    namespace: kafka
 roleRef:
   kind: ClusterRole
   name: strimzi-entity-operator
@@ -22482,7 +22482,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: strimzi-cluster-operator
-    namespace: myproject
+    namespace: kafka
 roleRef:
   kind: ClusterRole
   name: strimzi-kafka-client
@@ -22498,7 +22498,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: strimzi-cluster-operator
-    namespace: myproject
+    namespace: kafka
 roleRef:
   kind: ClusterRole
   name: strimzi-cluster-operator-watched
@@ -29644,7 +29644,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: strimzi-cluster-operator
-    namespace: myproject
+    namespace: kafka
 roleRef:
   kind: ClusterRole
   name: strimzi-cluster-operator-namespaced
@@ -29763,7 +29763,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: strimzi-cluster-operator
-    namespace: myproject
+    namespace: kafka
 roleRef:
   kind: ClusterRole
   name: strimzi-cluster-operator-leader-election
@@ -32722,7 +32722,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: strimzi-cluster-operator
-    namespace: myproject
+    namespace: kafka
 roleRef:
   kind: ClusterRole
   name: strimzi-kafka-broker
@@ -32756,7 +32756,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: strimzi-cluster-operator
-    namespace: myproject
+    namespace: kafka
 roleRef:
   kind: ClusterRole
   name: strimzi-cluster-operator-global
